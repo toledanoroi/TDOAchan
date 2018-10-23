@@ -29,7 +29,6 @@ def DDOA(TimeToSpeaker, SpeakerLocations):
     ddoa = np.append(SpeakerLocations, Rnm.T, axis=1)
     return (ddoa)
 
-
 def doChanForFour(D):
     M = D[:, :3]
     P = M[1:] - M[0]
@@ -72,7 +71,6 @@ def doChanForFour(D):
             poslist.append((T.A.squeeze()))
     return poslist
 
-
 Speaker1_x = 0.0
 Speaker1_y = 0.0
 Speaker1_z = 0.0
@@ -103,7 +101,9 @@ with open('2017-06-09-15-36-27.csv') as csvfile:
         all_list.append(temp_list)
 
 SpeakerLocations = np.matrix(
-    [[Speaker1_x, Speaker1_y, Speaker1_z], [Speaker2_x, Speaker2_y, Speaker2_z], [Speaker3_x, Speaker3_y, Speaker3_z],
+    [[Speaker1_x, Speaker1_y, Speaker1_z],
+     [Speaker2_x, Speaker2_y, Speaker2_z],
+     [Speaker3_x, Speaker3_y, Speaker3_z],
      [Speaker4_x, Speaker4_y, Speaker4_z]])
 start = time.time()
 

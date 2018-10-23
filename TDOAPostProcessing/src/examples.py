@@ -24,24 +24,24 @@ def short_time_energy_and_zero_cross_rate():
   # Find the short time energy.
   e = utils.ste(x, scipy.signal.get_window("hamming", 201))
   
-  pylab.figure()
-  pylab.subplot(311)
-  pylab.plot(t, x)
-  pylab.title('Speech signal (TEST1.wav)')
-  pylab.subplot(312)
-  pylab.plot(t, zc, 'r', linewidth=2)
-  pylab.title('Short-time Zero Crossing Rate')
-  pylab.subplot(313)
-  pylab.plot(t, e, 'm', linewidth=2)
-  pylab.xlabel('t (s)')
-  pylab.title('Short-time Energy')
-  
-  pylab.figure()
-  pylab.plot(t, x / x.max(), label="TEST1.wav")
-  pylab.hold(True)
-  pylab.plot(t, zc / zc.max(), 'r', label="zero crossing rate")
-  pylab.plot(t, e / e.max(), 'm', label="energy")
-  pylab.legend()
+  # pylab.figure()
+  # pylab.subplot(311)
+  # pylab.plot(t, x)
+  # pylab.title('Speech signal (TEST1.wav)')
+  # pylab.subplot(312)
+  # pylab.plot(t, zc, 'r', linewidth=2)
+  # pylab.title('Short-time Zero Crossing Rate')
+  # pylab.subplot(313)
+  # pylab.plot(t, e, 'm', linewidth=2)
+  # pylab.xlabel('t (s)')
+  # pylab.title('Short-time Energy')
+  #
+  # pylab.figure()
+  # pylab.plot(t, x / x.max(), label="TEST1.wav")
+  # pylab.hold(True)
+  # pylab.plot(t, zc / zc.max(), 'r', label="zero crossing rate")
+  # pylab.plot(t, e / e.max(), 'm', label="energy")
+  # pylab.legend()
 
 
 def run_examples():
