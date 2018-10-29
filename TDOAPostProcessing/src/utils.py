@@ -131,6 +131,7 @@ class UTILS(object):
 class SignalHandler(object):
     def __init__(self):
         pass
+
     def defineParams(self,my_signal):
         self.signal = my_signal['signal']
         self.Fs = my_signal['Fs']
@@ -149,9 +150,6 @@ class SignalHandler(object):
         :param filterOrder: length of filter (time domain)
         :return: update self.filtered_signal
         '''
-        # centerFreq and with a passband with of pBandwidt(or pBandwidth/2 to each
-        # side from centerFreq). filterOrder is the order of the filter to be designed.
-        # Fs is the sampling frequency.
 
         n = filterOrder
         pbw = (self.BW[2]) / 2
@@ -160,7 +158,9 @@ class SignalHandler(object):
 
         self.h1 = signal.firwin(numtaps=n, cutoff=[cf - pbw,cf + pbw],pass_zero=False, nyq=self.Fs / 2)
         self.mfreqz(self.h1)
-        self.filtered_signal = signal.convolve(self.signal,self.h1)
+        self.filtered_signal = signal.convolve(self.signal, self.h1)
+
+
 
     def SmoothSig(self,filterOrder,step='a'):
         '''

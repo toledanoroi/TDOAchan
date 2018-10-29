@@ -24,11 +24,11 @@ def WaveformBuilder(params):
 
 
 if __name__ == '__main__':
-    sig1_p = {'type': 'unique', 'mode':'linear', 'Fs': 88200, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
-    sig2_p = {'type': 'builtin', 'mode': 'linear', 'Fs': 88200, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
-    sig3_p = {'type': 'builtin', 'mode': 'hyperbolic', 'Fs': 88200, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
-    sig4_p = {'type': 'builtin', 'mode': 'logarithmic', 'Fs': 88200, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
-    sig5_p = {'type': 'builtin', 'mode': 'quadratic', 'Fs': 88200, 't1': 0.1, 'nrm': False, 'f0': 30000,
+    sig1_p = {'type': 'unique', 'mode':'linear', 'Fs': 192000, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
+    sig2_p = {'type': 'builtin', 'mode': 'linear', 'Fs': 192000, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
+    sig3_p = {'type': 'builtin', 'mode': 'hyperbolic', 'Fs': 192000, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
+    sig4_p = {'type': 'builtin', 'mode': 'logarithmic', 'Fs': 192000, 't1': 0.1, 'nrm': False, 'f0': 30000, 'f1': 20000}
+    sig5_p = {'type': 'builtin', 'mode': 'quadratic', 'Fs': 192000, 't1': 0.1, 'nrm': False, 'f0': 30000,
               'f1': 20000}
 
 

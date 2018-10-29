@@ -12,8 +12,9 @@ from termcolor import colored
 import src.algorithms as algos
 from math import cos, sin, pi
 from utils import UTILS
+from utils import SignalHandler as sigs
 
-plotting = False
+plotting = True
 
 def resampling(speaker,rec_Fs):
     factor = int((rec_Fs/250000.0)*len(speaker.matlab_chirp))
@@ -26,11 +27,11 @@ def resampling(speaker,rec_Fs):
         plt.show()
 
     fft1   = fftpkt.fftshift(fftpkt.fft(speaker.matlab_chirp))
-    freqs  = fftpkt.fftshift(fftpkt.fftfreq(len(speaker.matlab_chirp), 1.0 / 88200))
+    freqs  = fftpkt.fftshift(fftpkt.fftfreq(len(speaker.matlab_chirp), 1.0 / rec_Fs))
     fft22  = fftpkt.fftshift(fftpkt.fft(f))
-    freqs2 = fftpkt.fftshift(fftpkt.fftfreq(len(f), 1.0 / 88200))
+    freqs2 = fftpkt.fftshift(fftpkt.fftfreq(len(f), 1.0 / rec_Fs))
     fft33  = fftpkt.fftshift(fftpkt.fft(speaker.chirp))
-    freqs3 = fftpkt.fftshift(fftpkt.fftfreq(len(speaker.chirp), 1.0 / 88200))
+    freqs3 = fftpkt.fftshift(fftpkt.fftfreq(len(speaker.chirp), 1.0 / rec_Fs))
 
     if plotting:
         plt.figure(10)
@@ -44,7 +45,7 @@ def resampling(speaker,rec_Fs):
 class recwav(object):
     def __init__(self):
         self.path = '../inputs/first_test.wav'
-        self.sample_rate = 88200
+        self.sample_rate = 192000
         self.toa_csv_path = '../output/toa_record_'+str(int(time.time()))+'.csv'
         self.results_path = '../output/locations_results_'+str(int(time.time()))+'.csv'
         self.record_sig = []
@@ -74,12 +75,12 @@ class recwav(object):
               "\n\tNumber of channels:\t{2}\n\tDuration Time:\t{3}".format(self.path,
                                                                            self.sample_rate,
                                                                            self.num_of_channels,
-                                                                           self.rec_time[-1])
+                                                                           self.total_time)
 
         if plotting:
             plt.figure(1)
             plt.title('Signal Wave: ' + title )
-            plt.plot(self.rec_time,self.signal)
+            plt.plot(self.rec_time, self.signal)
             plt.show()
 
     def PlotPartSig(self,title):
@@ -148,9 +149,24 @@ class recwav(object):
             print "curr_time exceed total time , update part to total time"
             self.curr_time = self.total_time
         self.curr_sig = self.signal[int(self.prev_time*self.sample_rate): int(self.curr_time*self.sample_rate)]
-        # self.PlotPartSig(str(self.curr_time))
+        self.PlotPartSig(str(self.curr_time))
         self.prev_time = self.curr_time
         return self.curr_sig
+
+    def CutSigByPeaks(self, ind, peaks):
+        if ind >= (len(peaks) - 1):
+            self.curr_sig = self.signal[peaks[ind]:]
+            self.parttime = (len(self.signal) - peaks[ind]) / self.sample_rate
+        else:
+            final = peaks[ind + 1] - 200
+            self.curr_sig = self.signal[peaks[ind]:final]
+            self.parttime = (final - peaks[ind])/self.sample_rate
+        self.curr_time = peaks[ind]/self.sample_rate
+        self.time_samples_vect.append(self.curr_time)
+        self.PlotPartSig(str(self.curr_time))
+        self.prev_time = self.curr_time
+
+
 
 
 class Speaker(object):
@@ -163,26 +179,26 @@ class Speaker(object):
         self.params = {}
 
     def BuildChirp(self):
-        Fs = 88200
-        tt = np.linspace(0,0.001,Fs*0.001)
+        Fs = 192000
+        tt = np.linspace(0,0.001, Fs*0.001)
         matlabchirps = io.loadmat('../inputs/all_chirp.mat')
         chirps = matlabchirps['allchirp']
         if self.id == 1:
-            tmpchirp = signal.chirp(tt,30000,0.001,27500)
-            nrm = np.linspace(1,0.02,num=len(tmpchirp))
-            return np.multiply(nrm,tmpchirp) , chirps[:,0]
+            tmpchirp = signal.chirp(tt, 42000, 0.001, 37000)
+            nrm = np.linspace(1, 0.02, num=len(tmpchirp))
+            return np.multiply(nrm, tmpchirp) , chirps[:, 0]
         elif self.id == 2:
-            tmpchirp = signal.chirp(tt,15000,0.001,12500)
-            nrm = np.linspace(1,0.02,num=len(tmpchirp))
-            return np.multiply(nrm,tmpchirp) , chirps[:,1]
+            tmpchirp = signal.chirp(tt,30000,0.001,35000)
+            nrm = np.linspace(1, 0.02, num=len(tmpchirp))
+            return np.multiply(nrm, tmpchirp) , chirps[:, 1]
         elif self.id == 3:
-            tmpchirp = signal.chirp(tt,20000,0.001,17500)
-            nrm = np.linspace(1,0.02,num=len(tmpchirp))
-            return np.multiply(nrm,tmpchirp) , chirps[:,2]
+            tmpchirp = signal.chirp(tt,23000,0.001,28000)
+            nrm = np.linspace(1, 0.02,num=len(tmpchirp))
+            return np.multiply(nrm,tmpchirp), chirps[:, 2]
         elif self.id == 4:
-            tmpchirp = signal.chirp(tt,25000,0.001,22500)
-            nrm = np.linspace(1,0.02,num=len(tmpchirp))
-            return np.multiply(nrm,tmpchirp) , chirps[:,3]
+            tmpchirp = signal.chirp(tt, 21000, 0.001, 16000)
+            nrm = np.linspace(1, 0.02, num=len(tmpchirp))
+            return np.multiply(nrm, tmpchirp), chirps[:, 3]
 
     def WaveformBuilder(self):
         if (('type' not in self.params) | ('Fs' not in self.params) | ('f0' not in self.params) | ('f1' not in self.params) | ('t1' not in self.params) | ('nrm' not in self.params) | ('mode' not in self.params)):
@@ -244,9 +260,6 @@ class Speaker(object):
             self.y = y
             self.z = z
 
-    def GenerateTX(self):
-        # add matlab communicator
-        pass
 
 
 
@@ -254,25 +267,27 @@ if __name__ == '__main__':
 
     correl = []
     sp_list = [Speaker(), Speaker(), Speaker(), Speaker()]
+    # filtered_recs = [sigs(), sigs(), sigs(), sigs()]
 
     # for item in sp_list:
     #     item.DefineLocation('manual')
 
-    sp_list[0].DefineLocation('s', 0.0, 0.0, 1.0)
-    sp_list[1].DefineLocation('s', 0.56346, 3.1346, 1.35)
-    sp_list[2].DefineLocation('s', 2.1560, 0.3170, 1.370)
-    sp_list[3].DefineLocation('s', 2.10, 3.15730, 1.45)
+    sp_list[0].DefineLocation('s', 0.0, 0.0, 2.30)
+    sp_list[1].DefineLocation('s', 3.9, 0.0, 2.25)
+    sp_list[2].DefineLocation('s', 0.65, 3.8, 2.23)
+    sp_list[3].DefineLocation('s', 3.9, 4.04, 1.52)
     algorithm = int(raw_input("choose algorithm:\n\t(1) Chan Algorithm\n\t"
                               "(2) Taylor Algorithm\n\t(3) Room LUT Algorithm\n\t"
                               "(4) All Algorithms").strip())
+
     utils_obj = UTILS()
     record = recwav()
-    record.change_path('../inputs/second_test.wav','in')
-    record.PlotSignal('second.wav')
+    record.change_path('/Users/roitoledano/Music/Logic/newfreqs.wav','in')
+    record.PlotSignal('one by one.wav')
     # record.PlotPartSig('second.wav')
-    # record.PlotFFT('second.wav')
+    record.PlotFFT('one by one.wav')
     # record.plotOnlyOneCycle()
-    # record.Spectogram()
+    record.Spectogram()
 
     for i in range(len(sp_list)):
         sp_list[i].Define_ID(i+1)
@@ -283,14 +298,31 @@ if __name__ == '__main__':
                                                   "toa_sp_4", "corr_1","corr_2","corr_3","corr_4"])
         writer.writeheader()
         iterr = 1
-        while(record.curr_time<record.total_time):
-            record.CutCurrSig()
-            tmp = record.curr_sig
-            corr_list = utils_obj.CorrWith4(record,sp_list)
-            toa , max_corr = utils_obj.FindTOA(corr_list,record)
-            writer.writerow({"iteration":iterr,"toa_sp_1":toa[0], "toa_sp_2":toa[1], "toa_sp_3":toa[2],
-                             "toa_sp_4":toa[3],"corr_1":max_corr[0],"corr_2":max_corr[1],
-                             "corr_3":max_corr[2],"corr_4":max_corr[3]})
+        # while(record.curr_time < record.total_time):
+        #     record.CutCurrSig()
+        #     corr_list = utils_obj.CorrWith4(record,sp_list)
+        #     toa , max_corr = utils_obj.FindTOA(corr_list,record)
+        #
+        #     writer.writerow({"iteration":iterr,"toa_sp_1":toa[0], "toa_sp_2":toa[1], "toa_sp_3":toa[2],
+        #                      "toa_sp_4":toa[3],"corr_1":max_corr[0],"corr_2":max_corr[1],
+        #                      "corr_3":max_corr[2],"corr_4":max_corr[3]})
+        #     iterr += 1
+        # generate peaks vector
+        peaks, _ = signal.find_peaks(record.signal, height=int(0.7*(max(record.signal))), distance=100)
+        plt.plot(record.signal)
+        plt.plot(peaks, record.signal[peaks], "x")
+        plt.plot(np.zeros_like(record.signal), "--", color="gray")
+        plt.show()
+
+        for i in range(len(peaks)):
+            # record.CutCurrSig()
+            record.CutSigByPeaks(i, peaks)
+            corr_list = utils_obj.CorrWith4(record, sp_list)
+            toa, max_corr = utils_obj.FindTOA(corr_list, record)
+
+            writer.writerow({"iteration": iterr, "toa_sp_1": toa[0], "toa_sp_2": toa[1], "toa_sp_3": toa[2],
+                             "toa_sp_4": toa[3], "corr_1": max_corr[0], "corr_2": max_corr[1],
+                             "corr_3": max_corr[2], "corr_4": max_corr[3]})
             iterr += 1
 
     rec_dict = utils_obj.csv2dict(record.toa_csv_path,{"iteration":[],"toa_sp_1":[],
