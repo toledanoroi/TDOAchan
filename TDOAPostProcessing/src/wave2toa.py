@@ -330,9 +330,10 @@ if __name__ == '__main__':
                                                        "toa_sp_4":[], "corr_1":[],"corr_2":[],
                                                        "corr_3":[],"corr_4":[]})
 
-    print colored(" Finished parsing wav file","green")
+    print colored("Finished parsing wav file","green")
 
     sp2mic = []
+    print colored("generate sp2mic list", "blue")
     # plt.figure(5)
     # plt.title('toa')
     xx = rec_dict["iteration"]
