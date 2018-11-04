@@ -7,6 +7,9 @@ from scipy import signal
 
 class UTILS(object):
     def __init__(self):
+
+
+        self.yarden = []
         self.func_list = []
         self.tts_path = ''
 
