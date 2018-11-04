@@ -119,9 +119,9 @@ class RoomMatrix(object):
         self.resolution = res
 
 
-        self.dimx = int(np.ceil(self.xlim/self.resolution))
-        self.dimy = int(np.ceil(self.ylim/self.resolution))
-        self.dimz = int(np.ceil(self.zlim/self.resolution))
+        self.dimx = int(np.ceil(self.xlim/self.resolution)) + 1
+        self.dimy = int(np.ceil(self.ylim/self.resolution)) + 1
+        self.dimz = int(np.ceil(self.zlim/self.resolution)) + 1
         # define the room matrix
         x_t = np.linspace(0, self.xlim, self.dimx)
         y_t = np.linspace(0, self.ylim, self.dimy)
@@ -130,8 +130,6 @@ class RoomMatrix(object):
         # define room Quantization
         perm = np.array(list(itertools.product(x_t, y_t, z_t)))
         self.room_mat = perm.reshape(self.dimx, self.dimy, self.dimz, 3)
-
-
 
     def CalcDistMatrix(self):
         for key, value in self.speakers.items():
@@ -168,12 +166,12 @@ class RoomMatrix(object):
 
     def indextolocation(self,index):
         x = int(np.floor(index/(self.dimy * self.dimz)))
-        y = int(np.mod(index, x)/self.dimz)
-        z = int(np.mod(np.mod(index, x), y))
+        y = int(np.floor((index - x * (self.dimy * self.dimz))/self.dimz))
+        z = int(index - x * (self.dimy * self.dimz) - y * self.dimz)
         return self.room_mat[x, y, z, :]
 
 
-    def RoomMatMain(self,sp2mic, speakers,room_size, resolution, room_shape='square'):
+    def RoomMatMain(self,sp2mic, speakers,room_size, resolution,time_vect,filter_size, room_shape='square'):
         '''
 
         :param sp2mic: TOA samples from each speaker to the microphone
@@ -196,54 +194,22 @@ class RoomMatrix(object):
 
         for timestamp in range(cols):
             # need to create sp2mic - relevant timestamp   [TBD]
-
-            current_toa = np.array([sp2mic[0][timestamp], sp2mic[1][timestamp],
-                                    sp2mic[2][timestamp], sp2mic[3][timestamp]])*self.speedofvoice
+            tmp_time = time_vect[timestamp] - (filter_size / speakers[0].proccessed_signal.Fs)
+            print sp2mic[0][timestamp] - tmp_time
+            current_toa = np.array([sp2mic[0][timestamp] - tmp_time,
+                                    sp2mic[1][timestamp] - tmp_time,
+                                    sp2mic[2][timestamp] - tmp_time,
+                                    sp2mic[3][timestamp] - tmp_time]) * self.speedofvoice
             print colored(current_toa, 'red')
 
             # find best match in LUT
             mic_location = self.FindBestMatch(current_toa)
-            locations_list.append([timer, mic_location])
+            locations_list.append([time_vect[timestamp], mic_location])
 
         self.finish_time = time()
+        print "algorithm time : {}".format(self.finish_time - self.wakeup_time)
 
         return locations_list
 
 
 
-if __name__ == '__main__':
-
-    import wave2toa as wt
-    a = RoomMatrix()
-    a.DefineRoomSize(1,1,1,0.25)
-    speakers = [wt.Speaker(), wt.Speaker(), wt.Speaker(), wt.Speaker()]
-    for i in range(len(speakers)):
-        speakers[i].Define_ID(i+1)
-
-    # speakers[0].DefineLocation('s',0.0,0.0,1.0)
-    # speakers[1].DefineLocation('s', 0.56346, 3.1346, 1.35)
-    # speakers[2].DefineLocation('s', 2.1560, 0.3170, 1.370)
-    # speakers[3].DefineLocation('s', 2.10, 3.15730, 1.45)
-
-    speakers[0].DefineLocation('s',0.0,0.0,1.0)
-    speakers[1].DefineLocation('s', 0.5, 3.0, 1.0)
-    speakers[2].DefineLocation('s', 2.0, 0.0, 1.0)
-    speakers[3].DefineLocation('s', 2.0, 3.0, 1.5)
-
-
-    a.DefineSpeakers(speakers)
-    a.CalcDistMatrix()
-    # for key, item in a.EuclideanDistance.items():
-    #     print key
-    #     print item
-
-    b = a.EuclideanDistance['sp1'].reshape(a.dimx * a.dimy * a.dimz, 1)
-    c = a.EuclideanDistance['sp2'].reshape(a.dimx * a.dimy * a.dimz, 1)
-    d = a.EuclideanDistance['sp3'].reshape(a.dimx * a.dimy * a.dimz, 1)
-    e = a.EuclideanDistance['sp4'].reshape(a.dimx * a.dimy * a.dimz, 1)
-    roi = np.column_stack((a.EuclideanDistance['sp1'].reshape(a.dimx * a.dimy * a.dimz, 1),
-                           a.EuclideanDistance['sp2'].reshape(a.dimx * a.dimy * a.dimz, 1),
-                           a.EuclideanDistance['sp3'].reshape(a.dimx * a.dimy * a.dimz, 1),
-                           a.EuclideanDistance['sp4'].reshape(a.dimx * a.dimy * a.dimz, 1)))
-    print a.EuclideanDistance['sp1']
-    print b, c, d, e, roi

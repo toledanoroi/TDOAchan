@@ -33,21 +33,26 @@ class UTILS(object):
       win = win / len(win)
       return scipy.signal.convolve(x ** 2, win ** 2, mode="same")
 
-    def CorrWith4(self, record, speakers):
+    def CorrWith4(self, speakers):
         corr_list = []
         for speaker in speakers:
-            corr_list.append(np.correlate(record.curr_sig, speaker.matlab_chirp, 'full'))
-
+            corr_list.append(np.correlate(speaker))
+            corr_list.append(np.correlate(speaker.curr_sig, speaker.chirp, 'full'))
         return corr_list
 
-    def FindTOA(self,corr_l,record):
+    def FindTOA(self, corr_l, record, expected_signal_size, mode='max', thres=100):
         toa = []
         max_corr = []
-        for v in corr_l:
-            max_corr.append(max(v))
-            max_index = v.argmax(axis=0)
-            curr_toa = record.curr_time - record.parttime + float(max_index)/record.sample_rate
-            toa.append(curr_toa)
+        if mode == 'threshold':
+            for v in corr_l:
+                print "TBD " + str(thres)
+        else:
+            for v in corr_l:
+                max_corr.append(max(v))
+                max_index = v.argmax(axis=0)
+                curr_toa = record.curr_time + (float(max_index) - expected_signal_size)/record.sample_rate
+                toa.append(curr_toa)
+
         return toa, max_corr
 
     def csv2dict(self,csv_path,my_dict):
@@ -135,7 +140,7 @@ class SignalHandler(object):
     def defineParams(self,my_signal):
         self.signal = my_signal['signal']
         self.Fs = my_signal['Fs']
-        self.BW = [my_signal['low_freq'],my_signal['high_freq'],my_signal['high_freq'] - my_signal['low_freq']]
+        self.BW = [my_signal['low_freq'], my_signal['high_freq'], abs(my_signal['high_freq'] - my_signal['low_freq'])]
         self.filtered_signal = []
         self.smoothed_signal = []
         self.new_signal = []
