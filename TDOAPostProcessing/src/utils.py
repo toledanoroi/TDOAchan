@@ -36,6 +36,7 @@ class UTILS(object):
     def CorrWith4(self, speakers):
         corr_list = []
         for speaker in speakers:
+            # just for fun
             corr_list.append(np.correlate(speaker))
             corr_list.append(np.correlate(speaker.curr_sig, speaker.chirp, 'full'))
         return corr_list
