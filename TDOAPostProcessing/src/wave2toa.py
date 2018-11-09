@@ -14,7 +14,7 @@ from math import cos, sin, pi
 from utils import UTILS
 from utils import SignalHandler
 
-plotting = True
+plotting = False
 
 def resampling(speaker,rec_Fs):
     factor = int((rec_Fs/250000.0)*len(speaker.matlab_chirp))
@@ -103,11 +103,12 @@ class recwav(object):
         self.freqs = fftpkt.fftshift(fftpkt.fftfreq(len(self.signal),1.0/self.sample_rate))
         self.fft = fftpkt.fftshift(self.fft)
 
-        plt.figure(2)
-        plt.title('Signal Wave FFT: ' + title)
-        plt.plot(self.freqs, abs(self.fft))
-        plt.grid()
-        plt.show()
+        if plotting:
+            plt.figure()
+            plt.title('Signal Wave FFT: ' + title)
+            plt.plot(self.freqs, abs(self.fft))
+            plt.grid()
+            plt.show()
 
     def change_path(self, path, mode='in'):
         if mode == 'in':
@@ -122,16 +123,17 @@ class recwav(object):
         tmpfreqs = fftpkt.fftshift(fftpkt.fftfreq(len(tmpsig), 1.0 / self.sample_rate))
         tmprec_time = np.linspace(0, len(tmpsig) / self.sample_rate, num=len(tmpsig))
 
-        plt.figure(3)
-        plt.title('one cycle')
-        plt.plot(tmprec_time,tmpsig)
-        plt.show()
+        if plotting:
+            plt.figure(3)
+            plt.title('one cycle')
+            plt.plot(tmprec_time,tmpsig)
+            plt.show()
 
-        plt.figure(4)
-        plt.title('one cycle FFT:')
-        plt.plot(tmpfreqs,abs(tmpfft))
-        plt.grid()
-        plt.show()
+            plt.figure(4)
+            plt.title('one cycle FFT:')
+            plt.plot(tmpfreqs,abs(tmpfft))
+            plt.grid()
+            plt.show()
 
     def Spectogram(self):
         f,t,Sxx = signal.spectrogram(self.signal,self.sample_rate, nperseg=64)
@@ -156,14 +158,17 @@ class recwav(object):
     def CutSigByPeaks(self, ind, peaks, filter_size):
         if ind >= (len(peaks) - 1):
             self.curr_sig = self.signal[peaks[ind] - filter_size:]
-            # self.parttime = float(len(self.signal) - peaks[ind]) / self.sample_rate
         else:
             final = peaks[ind + 1] - 500
             self.curr_sig = self.signal[peaks[ind] - filter_size : final]
-            # self.parttime = float(final - peaks[ind]) / self.sample_rate
+        # calculate FFT
+        self.curr_sig_fft = fftpkt.fftshift(fftpkt.fft(self.curr_sig))
+        self.curr_freqs = fftpkt.fftshift(fftpkt.fftfreq(len(self.curr_sig), 1.0 / self.sample_rate))
+
         self.curr_time = (float(peaks[ind]) - filter_size) / self.sample_rate
         self.time_samples_vect.append(self.curr_time)
-        # self.PlotPartSig(str(self.curr_time))
+        if plotting:
+            self.PlotPartSig(str(self.curr_time))
         self.prev_time = self.curr_time
 
 
@@ -183,13 +188,17 @@ class Speaker(object):
     def CutSigByPeaks(self, ind, peaks, filter_size):
         if ind >= (len(peaks) - 1):
             self.curr_sig = self.proccessed_signal.filtered_signal[peaks[ind] - filter_size:]
-            # self.parttime = float(len(self.proccessed_signal.filtered_signal) - peaks[ind]) / self.proccessed_signal.Fs
         else:
             final = peaks[ind + 1] - 500
             self.curr_sig = self.proccessed_signal.filtered_signal[peaks[ind] - filter_size: final]
-            # self.parttime = float(final - peaks[ind])/self.proccessed_signal.Fs
+
+        # calculate FFT
+        self.curr_sig_fft = fftpkt.fftshift(fftpkt.fft(self.curr_sig))
+        self.curr_freqs = fftpkt.fftshift(fftpkt.fftfreq(len(self.curr_sig), 1.0 / self.sample_rate))
+
         self.curr_time = (float(peaks[ind]) - filter_size)/self.proccessed_signal.Fs
-        self.PlotPartSig("speaker {0} , current time:{1}".format(self.id, self.curr_time))
+        if plotting:
+            self.PlotPartSig("speaker {0} , current time:{1}".format(self.id, self.curr_time))
         self.prev_time = self.curr_time
 
     def PlotPartSig(self,title):
@@ -200,21 +209,36 @@ class Speaker(object):
         plt.plot(self.part_rec_time, self.curr_sig)
         plt.show()
 
-    def BuildChirp(self, freqs_dict, Fs,ch_time):
+    def BuildChirp(self, freqs_dict, Fs,ch_time, mode=1):
         # tt = np.linspace(0,0.001, Fs*0.001)
-        tt = np.linspace(0, ch_time, Fs*ch_time)
+        tt = np.linspace(0, ch_time, int(Fs*ch_time))
         matlabchirps = io.loadmat('../inputs/all_chirp.mat')
         chirps = matlabchirps['allchirp']
         self.unfiltered_signal = {'Fs': Fs, 'low_freq': freqs_dict[str(self.id)][1],
                                   'high_freq': freqs_dict[str(self.id)][0], 'chirp_time': ch_time}
 
-        tmpchirp = signal.chirp(tt, self.unfiltered_signal['low_freq'],
-                                self.unfiltered_signal['chirp_time'],
-                                self.unfiltered_signal['high_freq'])
-        self.unfiltered_signal['normalized_vect'] = np.linspace(1, 0.02, num=len(tmpchirp))
-        sig1 = np.multiply(self.unfiltered_signal['normalized_vect'], tmpchirp), chirps[:, self.id - 1]
+        if mode == 1:
+            tmpchirp = signal.chirp(tt, self.unfiltered_signal['low_freq'],
+                                    self.unfiltered_signal['chirp_time'],
+                                    self.unfiltered_signal['high_freq'])
+            self.unfiltered_signal['normalized_vect'] = np.linspace(1, 0.02, num=len(tmpchirp))
+            sig1 = np.multiply(self.unfiltered_signal['normalized_vect'], tmpchirp), chirps[:, self.id - 1]
+        if mode == 2:
+            ch1 = signal.chirp(tt[0:int(Fs*ch_time/2)], self.unfiltered_signal['low_freq'],
+                                    self.unfiltered_signal['chirp_time']/2,
+                                    self.unfiltered_signal['high_freq'])
+            ch2 = signal.chirp(tt, self.unfiltered_signal['high_freq'],
+                                    self.unfiltered_signal['chirp_time']/2,
+                                    self.unfiltered_signal['low_freq'])
+            tmpchirp = np.concatenate((ch1,ch2))
+            self.unfiltered_signal['normalized_vect'] = signal.windows.hamming(len(tmpchirp))
+            sig1 = np.multiply(tmpchirp,self.unfiltered_signal['normalized_vect'])
+
         return sig1
 
+    # if we want to use the waveform builder
+
+    '''
     def WaveformBuilder(self):
         if (('type' not in self.params) | ('Fs' not in self.params) | ('f0' not in self.params) | ('f1' not in self.params) | ('t1' not in self.params) | ('nrm' not in self.params) | ('mode' not in self.params)):
             raise ValueError
@@ -259,6 +283,8 @@ class Speaker(object):
         matlabchirps = io.loadmat('inputs/all_chirp.mat')
         chirps = matlabchirps['allchirp']
         self.matlab_chirp = chirps[:,self.id]
+        
+    '''
 
     def Define_ID(self,my_id, freqs_dict, Fs, ch_time):
         '''
