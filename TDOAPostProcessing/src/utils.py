@@ -36,8 +36,6 @@ class UTILS(object):
     def CorrWith4(self, speakers):
         corr_list = []
         for speaker in speakers:
-            # just for fun
-            corr_list.append(np.correlate(speaker))
             corr_list.append(np.correlate(speaker.curr_sig, speaker.chirp, 'full'))
         return corr_list
 
@@ -166,8 +164,6 @@ class SignalHandler(object):
         self.mfreqz(self.h1)
         self.filtered_signal = signal.convolve(self.signal, self.h1)
 
-
-
     def SmoothSig(self,filterOrder,step='a'):
         '''
         smoothing the noise
@@ -181,8 +177,6 @@ class SignalHandler(object):
         elif step == 'b':
             b, a = signal.butter(filterOrder, 0.05)
             self.new_signal = signal.filtfilt(b, a, self.filtered_signal)
-
-
 
     def mfreqz(self, b,a=1):
         from matplotlib import pyplot as plt

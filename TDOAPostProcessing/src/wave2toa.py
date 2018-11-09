@@ -194,7 +194,7 @@ class Speaker(object):
 
         # calculate FFT
         self.curr_sig_fft = fftpkt.fftshift(fftpkt.fft(self.curr_sig))
-        self.curr_freqs = fftpkt.fftshift(fftpkt.fftfreq(len(self.curr_sig), 1.0 / self.sample_rate))
+        self.curr_freqs = fftpkt.fftshift(fftpkt.fftfreq(len(self.curr_sig), 1.0 / self.proccessed_signal.Fs))
 
         self.curr_time = (float(peaks[ind]) - filter_size)/self.proccessed_signal.Fs
         if plotting:
@@ -329,7 +329,7 @@ if __name__ == '__main__':
                             '3': [0.65, 3.8, 2.23],
                             '4': [3.9, 4.04, 1.52]}
     chirp_time = 0.001
-    filter_size = 200
+    filter_size = 201
 
     algorithm = int(raw_input("choose algorithm:\n\t(1) Chan Algorithm\n\t"
                               "(2) Taylor Algorithm\n\t(3) Room LUT Algorithm\n\t"
@@ -337,7 +337,7 @@ if __name__ == '__main__':
 
     utils_obj = UTILS()
     record = recwav()
-    record.change_path('/Users/roitoledano/Music/Logic/T2.wav','in')
+    record.change_path('../inputs/T3.wav','in')
     record.PlotSignal('one by one.wav')
     record.PlotFFT(record.path)
     # record.Spectogram()
@@ -354,7 +354,7 @@ if __name__ == '__main__':
         sp_list[i].unfiltered_signal['signal'] = record.signal
         sp_list[i].unfiltered_signal['time_vect'] = record.rec_time
         sp_list[i].proccessed_signal.defineParams(sp_list[i].unfiltered_signal)
-        sp_list[i].proccessed_signal.BPF(139)
+        sp_list[i].proccessed_signal.BPF(filter_size)
 
     if plotting:
         print "plotting"
@@ -363,6 +363,7 @@ if __name__ == '__main__':
         for sp in sp_list:
             plt.plot(sp.proccessed_signal.record_time,
                      sp.proccessed_signal.filtered_signal[:len(sp.proccessed_signal.record_time)])
+
         plt.grid()
         plt.show()
         fftd = {}
@@ -384,7 +385,7 @@ if __name__ == '__main__':
         writer.writeheader()
         iterr = 1
 
-        peaks, _ = signal.find_peaks(record.signal, height=int(0.7*(max(record.signal))), distance=100)
+        peaks, _ = signal.find_peaks(record.signal, height=int(0.7*(max(record.signal))), distance=1000)
         if plotting:
             plt.plot(record.signal)
             plt.plot(peaks, record.signal[peaks], "x")
@@ -446,8 +447,6 @@ if __name__ == '__main__':
                                             record.time_samples_vect,
                                             filter_size,
                                             'square')
-
-
     elif algorithm == 4:
         chan = algos.ChanAlgo()
         LUT_obj = algos.RoomMatrix()
