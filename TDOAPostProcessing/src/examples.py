@@ -48,9 +48,35 @@ def run_examples():
   short_time_energy_and_zero_cross_rate()
   pylab.show()
 
+def run_delay():
+  a = numpy.zeros(2000)
+  a[50:1500] = 1
+
+  h = scipy.signal.firwin(numtaps=10001, cutoff=[60000], nyq=125000)
+  filtered_signal = scipy.signal.convolve(a, h)
+  corr_sig = numpy.correlate(a,numpy.array([0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0]),'full')
+  corr_a = numpy.correlate(a, a, 'full')
+
+  print len([0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0])
+
+  scipy.signal.chirp()
+
+  pylab.plot(a)
+  # pylab.plot(filtered_signal)
+  pylab.plot(corr_sig)
+  pylab.show()
+
+  for i in range(len(filtered_signal)):
+    if (corr_sig[i] > 0.5):
+      s = i
+
+  print s
+
+
+
 
 if __name__ == "__main__":
-  run_examples()
-
+  # run_examples()
+  run_delay()
 
 

@@ -209,11 +209,11 @@ class Speaker(object):
         plt.plot(self.part_rec_time, self.curr_sig)
         plt.show()
 
-    def BuildChirp(self, freqs_dict, Fs,ch_time, mode=1):
+    def BuildChirp(self, freqs_dict, Fs, ch_time, mode):
         # tt = np.linspace(0,0.001, Fs*0.001)
         tt = np.linspace(0, ch_time, int(Fs*ch_time))
-        matlabchirps = io.loadmat('../inputs/all_chirp.mat')
-        chirps = matlabchirps['allchirp']
+        matlab_chirps = io.loadmat('../inputs/all_chirp.mat')
+        chirps = matlab_chirps['allchirp']
         self.unfiltered_signal = {'Fs': Fs, 'low_freq': freqs_dict[str(self.id)][1],
                                   'high_freq': freqs_dict[str(self.id)][0], 'chirp_time': ch_time}
 
@@ -232,7 +232,11 @@ class Speaker(object):
                                     self.unfiltered_signal['low_freq'])
             tmpchirp = np.concatenate((ch1,ch2))
             self.unfiltered_signal['normalized_vect'] = signal.windows.hamming(len(tmpchirp))
-            sig1 = np.multiply(tmpchirp,self.unfiltered_signal['normalized_vect'])
+            sig1 = np.multiply(tmpchirp,self.unfiltered_signal['normalized_vect']), chirps[:, self.id - 1]
+        if mode == 1:
+            sig1 = signal.chirp(tt, self.unfiltered_signal['low_freq'],
+                                    self.unfiltered_signal['chirp_time'],
+                                    self.unfiltered_signal['high_freq']), chirps[:, self.id - 1]
 
         return sig1
 
@@ -296,7 +300,7 @@ class Speaker(object):
         :return:
         '''
         self.id = my_id
-        self.chirp, self.matlab_chirp = self.BuildChirp(freqs_dict, Fs, ch_time)
+        self.chirp, self.matlab_chirp = self.BuildChirp(freqs_dict, Fs, ch_time, 1)
 
     def DefineLocation(self,op,x=0.0,y=0.0,z=0.0):
         if op == 'csv':
@@ -309,6 +313,48 @@ class Speaker(object):
             self.x = x
             self.y = y
             self.z = z
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -329,7 +375,7 @@ if __name__ == '__main__':
                             '3': [0.65, 3.8, 2.23],
                             '4': [3.9, 4.04, 1.52]}
     chirp_time = 0.001
-    filter_size = 200
+    filter_size = 1001
 
     algorithm = int(raw_input("choose algorithm:\n\t(1) Chan Algorithm\n\t"
                               "(2) Taylor Algorithm\n\t(3) Room LUT Algorithm\n\t"
@@ -337,7 +383,7 @@ if __name__ == '__main__':
 
     utils_obj = UTILS()
     record = recwav()
-    record.change_path('/Users/roitoledano/Music/Logic/T2.wav','in')
+    record.change_path('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/T2.WAV','in')
     record.PlotSignal('one by one.wav')
     record.PlotFFT(record.path)
     # record.Spectogram()
@@ -354,68 +400,120 @@ if __name__ == '__main__':
         sp_list[i].unfiltered_signal['signal'] = record.signal
         sp_list[i].unfiltered_signal['time_vect'] = record.rec_time
         sp_list[i].proccessed_signal.defineParams(sp_list[i].unfiltered_signal)
-        sp_list[i].proccessed_signal.BPF(139)
+        sp_list[i].proccessed_signal.BPF(filter_size)
+        sp_list[i].peaks, sp_list[i].peaks_height = signal.find_peaks(
+            sp_list[i].proccessed_signal.filtered_signal,
+            height=int(0.7*(max(sp_list[i].proccessed_signal.filtered_signal))),
+            distance=10000)
+        sp_list[i].correl1, sp_list[i].correl2 = utils_obj.CorrSpeakerSig(sp_list[i])
+        sp_list[i].corr_peaks, sp_list[i].corr_peaks_height = signal.find_peaks(
+            sp_list[i].correl1,
+            height=int(0.7*(max(sp_list[i].correl1))),
+            distance=10000)
+
 
     if plotting:
         print "plotting"
-        plt.figure(789)
-        plt.plot(sp_list[0].unfiltered_signal['time_vect'], sp_list[i].unfiltered_signal['signal'])
+        plt.figure()
+        count = 0
         for sp in sp_list:
-            plt.plot(sp.proccessed_signal.record_time,
-                     sp.proccessed_signal.filtered_signal[:len(sp.proccessed_signal.record_time)])
-        plt.grid()
+            count += 1
+            plt.subplot(2, 2, count)
+            plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
+            plt.plot(sp.unfiltered_signal['time_vect'],
+                     sp.proccessed_signal.filtered_signal[:len(sp.unfiltered_signal['signal'])])
+            # plt.plot(sp.peaks, sp.proccessed_signal.filtered_signal[sp.peaks], "x")
+            # plt.plot(np.zeros_like(sp.proccessed_signal.filtered_signal), "--", color="gray")
+            plt.grid()
         plt.show()
-        fftd = {}
-        freqsd = {}
+        # count = 0
+        # fftd = {}
+        # freqsd = {}
         # plt.figure(790)
-        for sp in sp_list:
-            plt.figure(790 + sp.id)
-            fftd[str(sp.id)] = fftpkt.fftshift(fftpkt.fft(sp.proccessed_signal.filtered_signal))
-            freqsd[str(sp.id)] = fftpkt.fftshift(
-                fftpkt.fftfreq(len(sp.proccessed_signal.filtered_signal), 1.0 / sp.proccessed_signal.Fs))
-            plt.plot(freqsd[str(sp.id)], abs(fftd[str(sp.id)]))
-            plt.show()
-
+        # for sp in sp_list:
+        #     count += 1
+        #     fftd[str(sp.id)] = fftpkt.fftshift(fftpkt.fft(sp.proccessed_signal.filtered_signal))
+        #     freqsd[str(sp.id)] = fftpkt.fftshift(fftpkt.fftfreq(len(sp.proccessed_signal.filtered_signal), 1.0 / sp.proccessed_signal.Fs))
+        #     plt.subplot(2, 2, count)
+        #     plt.plot(freqsd[str(sp.id)], abs(fftd[str(sp.id)]))
         # plt.show()
 
     with open(record.toa_csv_path, 'wb') as fout:
-        writer = csv.DictWriter(fout, fieldnames=["iteration","toa_sp_1", "toa_sp_2", "toa_sp_3",
-                                                  "toa_sp_4", "corr_1","corr_2","corr_3","corr_4"])
+        writer = csv.DictWriter(fout, fieldnames=["toa_sp_1", "toa_sp_2", "toa_sp_3", "toa_sp_4"])
         writer.writeheader()
         iterr = 1
-
-        peaks, _ = signal.find_peaks(record.signal, height=int(0.7*(max(record.signal))), distance=100)
+        peaks, _ = signal.find_peaks(record.signal, height=int(0.7*(max(record.signal))), distance=10000)
         if plotting:
             plt.plot(record.signal)
             plt.plot(peaks, record.signal[peaks], "x")
             plt.plot(np.zeros_like(record.signal), "--", color="gray")
             plt.show()
 
+        delay = (filter_size - 1) / 2 + int(len(sp_list[0].chirp) / 2)
 
-        for i in range(len(peaks)):
-            # record.CutCurrSig()
-            record.CutSigByPeaks(i, peaks, filter_size)
+        for sp in sp_list:
+            sp.peaks_after_delay = sp.peaks - delay
+            sp.peaks_time_stamps = sp.peaks_after_delay / float(sp.proccessed_signal.Fs)
+
+        # for i in range(len(peaks)):
+        #     # record.CutCurrSig()
+        #     # record.CutSigByPeaks(i, peaks, filter_size)
+        #     # for sp in sp_list:
+        #     #     sp.CutSigByPeaks(i, peaks, filter_size)
+
+        # utils_obj.CorrWith4(sp_list)
+
+        corr_time_vect = np.linspace(0, float(len(sp_list[0].correl1)) / sp_list[0].proccessed_signal.Fs,
+                                     num=len(sp_list[0].correl1))
+
+        if plotting:
+            plt.figure()
+            count = 0
             for sp in sp_list:
-                sp.CutSigByPeaks(i, peaks, filter_size)
-            corr_list = utils_obj.CorrWith4(sp_list)
-            if plotting:
-                plt.figure()
-                for cr in corr_list:
-                    plt.plot(cr)
-                plt.legend(["speaker 1","speaker 2","speaker 3","speaker 4"])
-                plt.show()
+                count += 1
+                plt.subplot(2, 2, count)
+                plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
+                plt.plot(sp.proccessed_signal.record_time_with_filter_delay,
+                         sp.proccessed_signal.filtered_signal)
+                plt.plot(corr_time_vect,sp.correl1)
+                # plt.plot(sp.unfiltered_signal['time_vect'],
+                #          sp.correl2[:len(sp.unfiltered_signal['signal'])])
+                # plt.plot(sp.peaks, sp.proccessed_signal.filtered_signal[sp.peaks], "x")
+                # plt.plot(np.zeros_like(sp.proccessed_signal.filtered_signal), "--", color="gray")
+                plt.grid()
+                for i in range(len(sp.peaks)):
+                    print ("*" * 50 + "\n") * 3
+                    # print "real_peak = {0}".format(peaks[i])
+                    print "real_peak_filtered = {0}".format(sp.peaks[i])
+                    print "corr peak = {0}".format(sp.corr_peaks[i])
+                    print "corr_peak - real_peak_filtered = {0}".format(sp.corr_peaks[i] - sp.peaks[i])
+                    print ("*" * 50 + "\n") * 3
+            plt.show()
 
-            toa, max_corr = utils_obj.FindTOA(corr_list, record, len(sp.chirp))
+            plt.figure()
+            for sp in sp_list:
+                plt.plot(corr_time_vect, sp.correl1)
+            plt.legend(["sp1", "sp2", "sp3", "sp4"])
+            plt.show()
 
-            writer.writerow({"iteration": iterr, "toa_sp_1": toa[0], "toa_sp_2": toa[1], "toa_sp_3": toa[2],
-                             "toa_sp_4": toa[3], "corr_1": max_corr[0], "corr_2": max_corr[1],
-                             "corr_3": max_corr[2], "corr_4": max_corr[3]})
-            iterr += 1
 
-    rec_dict = utils_obj.csv2dict(record.toa_csv_path,{"iteration":[],"toa_sp_1":[],
-                                                       "toa_sp_2":[], "toa_sp_3":[],
-                                                       "toa_sp_4":[], "corr_1":[],"corr_2":[],
-                                                       "corr_3":[],"corr_4":[]})
+        for i in range(len(sp_list[0].peaks_time_stamps)):
+            writer.writerow({"toa_sp_1": sp_list[0].peaks_time_stamps[i],
+                             "toa_sp_2": sp_list[1].peaks_time_stamps[i],
+                             "toa_sp_3": sp_list[2].peaks_time_stamps[i],
+                             "toa_sp_4": sp_list[3].peaks_time_stamps[i]})
+
+    # toa, max_corr = utils_obj.FindTOA(corr_list, record, len(sp.chirp))
+
+    # writer.writerow({"toa_sp_1": toa[0], "toa_sp_2": toa[1], "toa_sp_3": toa[2],
+    #                  "toa_sp_4": toa[3], "corr_1": max_corr[0], "corr_2": max_corr[1],
+    #                  "corr_3": max_corr[2], "corr_4": max_corr[3]})
+    # iterr += 1
+
+    rec_dict = utils_obj.csv2dict(record.toa_csv_path,{"toa_sp_1": [],
+                                                       "toa_sp_2": [],
+                                                       "toa_sp_3": [],
+                                                       "toa_sp_4": []})
 
     print colored("Finished parsing wav file","green")
 
@@ -423,10 +521,16 @@ if __name__ == '__main__':
     print colored("generate sp2mic list", "blue")
     # plt.figure(5)
     # plt.title('toa')
-    xx = rec_dict["iteration"]
-    for key in rec_dict.keys():
-        if key.startswith("toa"):
-            sp2mic.append(rec_dict[key])
+
+    # xx = rec_dict["iteration"]
+    # for key in rec_dict.keys():
+    #     if key.startswith("toa"):
+    #         sp2mic.append(rec_dict[key])
+
+    sp2mic = [rec_dict['toa_sp_1'],
+              rec_dict['toa_sp_2'],
+              rec_dict['toa_sp_3'],
+              rec_dict['toa_sp_4']]
 
     sp_location = utils_obj.buildSpeakersLocationMatrix(sp_list)
 
@@ -467,20 +571,9 @@ if __name__ == '__main__':
         results_dict = utils_obj.res2csv(record.time_samples_vect,location_list,record.results_path)
 
     # print colored('Chan_Algorithm_finished', 'green')
-    for i in results_dict["Iteration"]:
-        i = int(i)
-        print colored("T:{0} , X:{1}, Y:{2}, Z:{3}".format(results_dict["Time [sec]"][i - 1],
-                                                           results_dict["X [m]"][i - 1],
-                                                           results_dict["Y [m]"][i - 1],
-                                                           results_dict["Z [m]"][i - 1]), "blue")
-
-
-
-
-
-
-
-
-
-
-
+    # for i in results_dict["Iteration"]:
+    #     i = int(i)
+    #     print colored("T:{0} , X:{1}, Y:{2}, Z:{3}".format(results_dict["Time [sec]"][i - 1],
+    #                                                        results_dict["X [m]"][i - 1],
+    #                                                        results_dict["Y [m]"][i - 1],
+    #                                                        results_dict["Z [m]"][i - 1]), "blue")

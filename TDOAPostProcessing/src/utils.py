@@ -33,12 +33,15 @@ class UTILS(object):
       win = win / len(win)
       return scipy.signal.convolve(x ** 2, win ** 2, mode="same")
 
+    def CorrSpeakerSig(self, speaker):
+        a = np.correlate(speaker.proccessed_signal.filtered_signal, speaker.chirp, 'full')
+        b = np.correlate(speaker.proccessed_signal.signal, speaker.chirp, 'full')
+        return a, b
+
     def CorrWith4(self, speakers):
         corr_list = []
         for speaker in speakers:
-            # just for fun
-            corr_list.append(np.correlate(speaker))
-            corr_list.append(np.correlate(speaker.curr_sig, speaker.chirp, 'full'))
+            corr_list.append(np.correlate(speaker.proccessed_signal.filtered_signal, speaker.chirp, 'full'))
         return corr_list
 
     def FindTOA(self, corr_l, record, expected_signal_size, mode='max', thres=100):
@@ -158,13 +161,14 @@ class SignalHandler(object):
         '''
 
         n = filterOrder
-        pbw = (self.BW[2]) / 2
+        pbw = 1.1 * ((self.BW[2]) / 2)
         cf = (self.BW[1] + self.BW[0]) / 2
 
 
         self.h1 = signal.firwin(numtaps=n, cutoff=[cf - pbw,cf + pbw],pass_zero=False, nyq=self.Fs / 2)
         self.mfreqz(self.h1)
         self.filtered_signal = signal.convolve(self.signal, self.h1)
+        self.record_time_with_filter_delay = np.linspace(0, float(len(self.filtered_signal)) / self.Fs, num=len(self.filtered_signal))
 
 
 
