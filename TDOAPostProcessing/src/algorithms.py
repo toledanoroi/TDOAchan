@@ -84,10 +84,10 @@ class ChanAlgo():
             a.append(sp2mic[1][i])
             a.append(sp2mic[2][i])
             a.append(sp2mic[3][i])
-            print colored(a,'red')
+            print (a,'red')
             D = self.DDOA(a,sp_location)
             POS = self.doChanForFour(D)
-            print colored(POS,'red')
+            print (POS,'red')
             self.location_list.append(POS[0])
 
         return self.location_list
@@ -105,7 +105,7 @@ class RoomMatrix(object):
         self.xlim = 0
         self.ylim = 0
         self.zlim = 0
-        self.resolution = 0.01
+        self.resolution = 1
         self.speakers = {}
         self.EuclideanDistance = {}
         self.speedofvoice = 343.0
@@ -116,7 +116,7 @@ class RoomMatrix(object):
         self.xlim = x
         self.ylim = y
         self.zlim = z
-        self.resolution = res
+        self.resolution = 0.1
 
 
         self.dimx = int(np.ceil(self.xlim/self.resolution)) + 1
@@ -144,6 +144,15 @@ class RoomMatrix(object):
                                          self.EuclideanDistance['sp3'].reshape(self.dimx * self.dimy * self.dimz, 1),
                                          self.EuclideanDistance['sp4'].reshape(self.dimx * self.dimy * self.dimz, 1)))
 
+    def CalcTDOMat(self):
+        self.TDOAmats = {}
+        tmp = self.mat4corr / float(self.speedofvoice)
+        for i in range(4):
+            tmpvector = tmp[:,i]
+            self.TDOAmats['TDOA_from_sp' + str(i)] = tmp - tmpvector
+
+
+
     def CalcEucDist2mat(self,mat1, mat2):
         differ = (abs(mat1 - mat2)) ** 2
         return np.sqrt(differ.sum(-1))
@@ -152,14 +161,14 @@ class RoomMatrix(object):
         for sp in sp_list:
             self.speakers[sp.id] = [sp.x, sp.y, sp.z]
 
-    def FindBestMatch(self, toa, mode='distance'):
+    def FindBestMatch(self, tdoa, mode='distance'):
         if mode == 'distance':
-            tmp = np.tile(toa, self.dimx * self.dimy * self.dimz)
+            tmp = np.tile(tdoa, self.dimx * self.dimy * self.dimz)
             tmp2 = tmp.reshape(self.dimx * self.dimy * self.dimz, 4)
-            dist = self.CalcEucDist2mat(tmp2, self.mat4corr)
+            dist = self.CalcEucDist2mat(tmp2, self.TDOAmats['TDOA_from_sp1'])
             best = np.argmin(dist)
         elif mode == 'corr':
-            best = np.argmax(np.dot(self.mat4corr, toa))
+            best = np.argmax(np.dot(self.TDOAmats['TDOA_from_sp1'], tdoa))
 
         return self.indextolocation(best)
 
@@ -170,6 +179,13 @@ class RoomMatrix(object):
         z = int(index - x * (self.dimy * self.dimz) - y * self.dimz)
         return self.room_mat[x, y, z, :]
 
+
+    def Sp2MicToTDOA(self,sp2mic):
+        rows = len(sp2mic)
+        self.measuredTDOA_vectors = {}
+        for i in range(rows):
+            tmpvector = np.array(sp2mic) - np.array(sp2mic[i])
+            self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
 
     def RoomMatMain(self,sp2mic, speakers,room_size, resolution,time_vect,filter_size, room_shape='square'):
         '''
@@ -190,21 +206,26 @@ class RoomMatrix(object):
         self.DefineSpeakers(speakers)
         # calculate the Euclidean matrix. (LUT)
         self.CalcDistMatrix()
+        # Generate relevant TDOAs matrices
+        self.CalcTDOMat()
+        # convert measured TOA to TDOA
+        self.Sp2MicToTDOA(sp2mic)
         #create matrix for match filter
 
-        for timestamp in range(cols):
+        for i in range(len(time_vect)):
             # need to create sp2mic - relevant timestamp   [TBD]
-            tmp_time = time_vect[timestamp] - (filter_size / speakers[0].proccessed_signal.Fs)
-            print sp2mic[0][timestamp] - tmp_time
-            current_toa = np.array([sp2mic[0][timestamp] - tmp_time,
-                                    sp2mic[1][timestamp] - tmp_time,
-                                    sp2mic[2][timestamp] - tmp_time,
-                                    sp2mic[3][timestamp] - tmp_time]) * self.speedofvoice
-            print colored(current_toa, 'red')
+            tmp_time = time_vect[i]
+            current_tdoa1 = self.measuredTDOA_vectors['TDOA_from_sp1'][i]
+            current_tdoa2 = self.measuredTDOA_vectors['TDOA_from_sp2'][i]
+            current_tdoa3 = self.measuredTDOA_vectors['TDOA_from_sp3'][i]
+            current_tdoa4 = self.measuredTDOA_vectors['TDOA_from_sp4'][i]
+
 
             # find best match in LUT
-            mic_location = self.FindBestMatch(current_toa)
-            locations_list.append([time_vect[timestamp], mic_location])
+            # if considered only one tdoa calculation
+            mic_location = self.FindBestMatch(current_tdoa1)
+            # mic_location = self.WeightBestMatch(current_tdoa1,current_tdoa2,current_tdoa3,current_tdoa4)
+            locations_list.append([time_vect[i], mic_location])
 
         self.finish_time = time()
         print "algorithm time : {}".format(self.finish_time - self.wakeup_time)

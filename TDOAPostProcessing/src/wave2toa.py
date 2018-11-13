@@ -14,7 +14,7 @@ from math import cos, sin, pi
 from utils import UTILS
 from utils import SignalHandler
 
-plotting = False
+plotting = True
 
 def resampling(speaker,rec_Fs):
     factor = int((rec_Fs/250000.0)*len(speaker.matlab_chirp))
@@ -44,7 +44,7 @@ def resampling(speaker,rec_Fs):
 
 class recwav(object):
     def __init__(self):
-        self.path = '../inputs/first_test.wav'
+        self.path = '../inputs/blackmanharris5ms/1.wav'
         self.sample_rate = 96000
         self.toa_csv_path = '../output/toa_record_'+str(int(time.time()))+'.csv'
         self.results_path = '../output/locations_results_'+str(int(time.time()))+'.csv'
@@ -209,7 +209,7 @@ class Speaker(object):
     def BuildChirp(self, freqs_dict, Fs, ch_time, mode):
         # tt = np.linspace(0,0.001, Fs*0.001)
         tt = np.linspace(0, ch_time, int(Fs*ch_time))
-        matlab_chirps = io.loadmat('../inputs/allchirps.mat')
+        matlab_chirps = io.loadmat('../inputs/chirp_blackman_harris_5ms_Fs500000.mat')
         chirps = matlab_chirps['allchirp']
         self.unfiltered_signal = {'Fs': Fs, 'low_freq': freqs_dict[str(self.id)][1],
                                   'high_freq': freqs_dict[str(self.id)][0], 'chirp_time': ch_time}
@@ -386,8 +386,8 @@ if __name__ == '__main__':
 
     utils_obj = UTILS()
     record = recwav()
-    record.change_path('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/onlysp4.WAV','in')
-    record.PlotSignal('one by one.wav')
+    record.change_path('/Users/Yarden/git/TDOAchan/TDOAPostProcessing/inputs/blackmanharris5ms/1.WAV','in')
+    record.PlotSignal('blackmanharris5ms')
     record.PlotFFT(record.path)
     # record.Spectogram()
 
@@ -403,7 +403,7 @@ if __name__ == '__main__':
         sp_list[i].unfiltered_signal['signal'] = record.signal
         sp_list[i].unfiltered_signal['time_vect'] = record.rec_time
         sp_list[i].proccessed_signal.defineParams(sp_list[i].unfiltered_signal)
-        sp_list[i].proccessed_signal.BPF(filter_size)
+        sp_list[i].proccessed_signal.BPF(filter_size,plotting=plotting)
         sp_list[i].peaks, sp_list[i].peaks_height = signal.find_peaks(
             sp_list[i].proccessed_signal.filtered_signal,
             height=int(0.7*(max(sp_list[i].proccessed_signal.filtered_signal))),
@@ -453,11 +453,12 @@ if __name__ == '__main__':
             plt.show()
 
         delay = (filter_size - 1) / 2 + int(len(sp_list[0].chirp) / 2)
-
+        sum = 0
         for sp in sp_list:
             sp.peaks_after_delay = sp.peaks - delay
             sp.peaks_time_stamps = sp.peaks_after_delay / float(sp.proccessed_signal.Fs)
-
+            sum += sp.peaks_time_stamps
+        timestamps = sum / float(len(sp_list)) - 3 * (10 ** -3)
         # for i in range(len(peaks)):
         #     # record.CutCurrSig()
         #     # record.CutSigByPeaks(i, peaks, filter_size)
@@ -549,8 +550,8 @@ if __name__ == '__main__':
         location_list = LUT_obj.RoomMatMain(sp2mic,
                                             sp_list,
                                             {'x': 3.9, 'y': 4.04, 'z': 2.4},
-                                            0.1,
-                                            record.time_samples_vect,
+                                            1,
+                                            timestamps,
                                             filter_size,
                                             'square')
 

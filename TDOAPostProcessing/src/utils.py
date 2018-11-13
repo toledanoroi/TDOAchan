@@ -34,8 +34,8 @@ class UTILS(object):
       return scipy.signal.convolve(x ** 2, win ** 2, mode="same")
 
     def CorrSpeakerSig(self, speaker):
-        a = np.correlate(speaker.proccessed_signal.filtered_signal, speaker.chirp, 'full')
-        b = np.correlate(speaker.proccessed_signal.signal, speaker.chirp, 'full')
+        a = np.correlate(speaker.proccessed_signal.filtered_signal, speaker.matlab_chirp, 'full')
+        b = np.correlate(speaker.proccessed_signal.signal, speaker.matlab_chirp, 'full')
         return a, b
 
     def CorrWith4(self, speakers):
@@ -150,7 +150,7 @@ class SignalHandler(object):
         self.new_signal = []
         self.record_time = my_signal['time_vect']
 
-    def BPF(self, filterOrder):
+    def BPF(self, filterOrder, plotting=False):
         '''
         This function creates a bandpass filter with center frequency at
         centerFreq and with a passband with of pBandwidt(or pBandwidth/2 to each
@@ -166,7 +166,8 @@ class SignalHandler(object):
 
 
         self.h1 = signal.firwin(numtaps=n, cutoff=[cf - pbw,cf + pbw],pass_zero=False, nyq=self.Fs / 2)
-        self.mfreqz(self.h1)
+        if plotting:
+            self.mfreqz(self.h1)
         self.filtered_signal = signal.convolve(self.signal, self.h1)
         self.record_time_with_filter_delay = np.linspace(0, float(len(self.filtered_signal)) / self.Fs, num=len(self.filtered_signal))
 
@@ -196,6 +197,7 @@ class SignalHandler(object):
         h_dB = 20 * log10(abs(h))
         plt.subplot(211)
         plt.plot(w/max(w), h_dB)
+        plt.grid()
         plt.ylim(-150, 5)
         plt.ylabel('Magnitude (db)')
         plt.xlabel(r'Normalized Frequency (x$\pi$rad/sample)')
@@ -203,6 +205,7 @@ class SignalHandler(object):
         plt.subplot(212)
         h_Phase = unwrap(arctan2(imag(h),real(h)))
         plt.plot(w/max(w),h_Phase)
+        plt.grid()
         plt.ylabel('Phase (radians)')
         plt.xlabel(r'Normalized Frequency (x$\pi$rad/sample)')
         plt.title(r'Phase response')
@@ -237,8 +240,8 @@ if __name__ == '__main__':
     from src.wave2toa import Speaker
     from src.wave2toa import recwav
     rec = recwav()
-    rec.change_path('../inputs/second_test.wav','in')
-    rec.PlotSignal('second.wav')
+    rec.change_path('../inputs/blackmanharris5ms/1.WAV','in')
+    rec.PlotSignal('blackmanharris5ms.wav')
     s = Speaker()
     s.Define_ID(1)
     s.BuildChirp()
