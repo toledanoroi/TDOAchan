@@ -171,9 +171,6 @@ class recwav(object):
             self.PlotPartSig(str(self.curr_time))
         self.prev_time = self.curr_time
 
-
-
-
 class Speaker(object):
     def __init__(self):
         self.id = 555
@@ -212,18 +209,18 @@ class Speaker(object):
     def BuildChirp(self, freqs_dict, Fs, ch_time, mode):
         # tt = np.linspace(0,0.001, Fs*0.001)
         tt = np.linspace(0, ch_time, int(Fs*ch_time))
-        matlab_chirps = io.loadmat('../inputs/all_chirp.mat')
+        matlab_chirps = io.loadmat('../inputs/allchirps.mat')
         chirps = matlab_chirps['allchirp']
         self.unfiltered_signal = {'Fs': Fs, 'low_freq': freqs_dict[str(self.id)][1],
                                   'high_freq': freqs_dict[str(self.id)][0], 'chirp_time': ch_time}
 
-        if mode == 1:
+        if mode == 3:
             tmpchirp = signal.chirp(tt, self.unfiltered_signal['low_freq'],
                                     self.unfiltered_signal['chirp_time'],
                                     self.unfiltered_signal['high_freq'])
             self.unfiltered_signal['normalized_vect'] = np.linspace(1, 0.02, num=len(tmpchirp))
             sig1 = np.multiply(self.unfiltered_signal['normalized_vect'], tmpchirp), chirps[:, self.id - 1]
-        if mode == 2:
+        elif mode == 2:
             ch1 = signal.chirp(tt[0:int(Fs*ch_time/2)], self.unfiltered_signal['low_freq'],
                                     self.unfiltered_signal['chirp_time']/2,
                                     self.unfiltered_signal['high_freq'])
@@ -233,10 +230,12 @@ class Speaker(object):
             tmpchirp = np.concatenate((ch1,ch2))
             self.unfiltered_signal['normalized_vect'] = signal.windows.hamming(len(tmpchirp))
             sig1 = np.multiply(tmpchirp,self.unfiltered_signal['normalized_vect']), chirps[:, self.id - 1]
-        if mode == 1:
+        elif mode == 1:
             sig1 = signal.chirp(tt, self.unfiltered_signal['low_freq'],
                                     self.unfiltered_signal['chirp_time'],
                                     self.unfiltered_signal['high_freq']), chirps[:, self.id - 1]
+        else:
+            print "wrong input"
 
         return sig1
 
@@ -366,10 +365,14 @@ if __name__ == '__main__':
     #                         '2': [35000, 30000],
     #                         '3': [28000, 23000],
     #                         '4': [21000, 16000]}
-    speakers_frequencies = {'1': [20000, 28000],
-                            '2': [32000, 40000],
-                            '3': [44000, 52000],
-                            '4': [56000, 64000]}
+    # speakers_frequencies = {'1': [20000, 28000],
+    #                         '2': [32000, 40000],
+    #                         '3': [44000, 52000],
+    #                         '4': [56000, 64000]}
+    speakers_frequencies = {'1': [20000, 27000],
+                            '2': [27000, 34000],
+                            '3': [34000, 41000],
+                            '4': [42000, 49000]}
     speakers_locations_d = {'1': [0.0, 0.0, 2.30],
                             '2': [3.9, 0.0, 2.25],
                             '3': [0.65, 3.8, 2.23],
@@ -383,7 +386,7 @@ if __name__ == '__main__':
 
     utils_obj = UTILS()
     record = recwav()
-    record.change_path('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/T2.WAV','in')
+    record.change_path('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/onlysp4.WAV','in')
     record.PlotSignal('one by one.wav')
     record.PlotFFT(record.path)
     # record.Spectogram()
@@ -404,12 +407,12 @@ if __name__ == '__main__':
         sp_list[i].peaks, sp_list[i].peaks_height = signal.find_peaks(
             sp_list[i].proccessed_signal.filtered_signal,
             height=int(0.7*(max(sp_list[i].proccessed_signal.filtered_signal))),
-            distance=10000)
+            distance=50000)
         sp_list[i].correl1, sp_list[i].correl2 = utils_obj.CorrSpeakerSig(sp_list[i])
         sp_list[i].corr_peaks, sp_list[i].corr_peaks_height = signal.find_peaks(
             sp_list[i].correl1,
             height=int(0.7*(max(sp_list[i].correl1))),
-            distance=10000)
+            distance=50000)
 
 
     if plotting:
