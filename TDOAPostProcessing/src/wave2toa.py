@@ -14,7 +14,7 @@ from math import cos, sin, pi
 from utils import UTILS
 from utils import SignalHandler
 
-plotting = True
+plotting = False
 
 def resampling(speaker,rec_Fs):
     factor = int((rec_Fs/250000.0)*len(speaker.matlab_chirp))
@@ -386,7 +386,7 @@ if __name__ == '__main__':
 
     utils_obj = UTILS()
     record = recwav()
-    record.change_path('/Users/Yarden/git/TDOAchan/TDOAPostProcessing/inputs/blackmanharris5ms/1.WAV','in')
+    record.change_path(os.path.abspath('../inputs/blackmanharris5ms/1.WAV'),'in')
     record.PlotSignal('blackmanharris5ms')
     record.PlotFFT(record.path)
     # record.Spectogram()
@@ -546,14 +546,8 @@ if __name__ == '__main__':
         print "TBD"
         results_dict = {}
     elif algorithm == 3:
-        LUT_obj = algos.RoomMatrix()
-        location_list = LUT_obj.RoomMatMain(sp2mic,
-                                            sp_list,
-                                            {'x': 3.9, 'y': 4.04, 'z': 2.4},
-                                            1,
-                                            timestamps,
-                                            filter_size,
-                                            'square')
+        LUT_obj = algos.RoomMatrix(3.9, 4.04, 2.4, sp_list, res=0.1)
+        location_list = LUT_obj.RoomMatMain(sp2mic,timestamps,'square')
 
 
     elif algorithm == 4:

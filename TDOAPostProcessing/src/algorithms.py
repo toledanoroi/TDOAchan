@@ -101,23 +101,16 @@ class TaylorLS():
         self.res = 0.01  # Tracking Resolution
 
 class RoomMatrix(object):
-    def __init__(self):
-        self.xlim = 0
-        self.ylim = 0
-        self.zlim = 0
-        self.resolution = 1
+    def __init__(self,x,y,z,sp_list,res=0.1):
+        self.xlim = x
+        self.ylim = y
+        self.zlim = z
+        self.resolution = res
         self.speakers = {}
         self.EuclideanDistance = {}
         self.speedofvoice = 343.0
         self.wakeup_time = time()
         self.finish_time = 0
-
-    def DefineRoomSize(self,x,y,z,res):
-        self.xlim = x
-        self.ylim = y
-        self.zlim = z
-        self.resolution = 0.1
-
 
         self.dimx = int(np.ceil(self.xlim/self.resolution)) + 1
         self.dimy = int(np.ceil(self.ylim/self.resolution)) + 1
@@ -126,10 +119,13 @@ class RoomMatrix(object):
         x_t = np.linspace(0, self.xlim, self.dimx)
         y_t = np.linspace(0, self.ylim, self.dimy)
         z_t = np.linspace(0, self.zlim, self.dimz)
-
         # define room Quantization
         perm = np.array(list(itertools.product(x_t, y_t, z_t)))
         self.room_mat = perm.reshape(self.dimx, self.dimy, self.dimz, 3)
+
+        #define speakers location
+        for sp in sp_list:
+            self.speakers[sp.id] = [sp.x, sp.y, sp.z]
 
     def CalcDistMatrix(self):
         for key, value in self.speakers.items():
@@ -148,27 +144,35 @@ class RoomMatrix(object):
         self.TDOAmats = {}
         tmp = self.mat4corr / float(self.speedofvoice)
         for i in range(4):
-            tmpvector = tmp[:,i]
+            tmpvector = np.tile(tmp[:,i], 4)
+            tmpvector = np.transpose(tmpvector.reshape(4,len(tmp)))
             self.TDOAmats['TDOA_from_sp' + str(i)] = tmp - tmpvector
-
-
 
     def CalcEucDist2mat(self,mat1, mat2):
         differ = (abs(mat1 - mat2)) ** 2
         return np.sqrt(differ.sum(-1))
-
-    def DefineSpeakers(self,sp_list):
-        for sp in sp_list:
-            self.speakers[sp.id] = [sp.x, sp.y, sp.z]
 
     def FindBestMatch(self, tdoa, mode='distance'):
         if mode == 'distance':
             tmp = np.tile(tdoa, self.dimx * self.dimy * self.dimz)
             tmp2 = tmp.reshape(self.dimx * self.dimy * self.dimz, 4)
             dist = self.CalcEucDist2mat(tmp2, self.TDOAmats['TDOA_from_sp1'])
+            from matplotlib import pyplot as plt
+            plt.figure()
+            plt.plot(dist)
+            plt.grid()
+            plt.show()
             best = np.argmin(dist)
+            error = min(dist)
         elif mode == 'corr':
-            best = np.argmax(np.dot(self.TDOAmats['TDOA_from_sp1'], tdoa))
+            k = np.dot(self.TDOAmats['TDOA_from_sp1'], tdoa)
+            from matplotlib import pyplot as plt
+            plt.figure()
+            plt.plot(k)
+            plt.grid()
+            plt.show()
+            best = np.argmax(k)
+            error = max(k)
 
         return self.indextolocation(best)
 
@@ -184,10 +188,10 @@ class RoomMatrix(object):
         rows = len(sp2mic)
         self.measuredTDOA_vectors = {}
         for i in range(rows):
-            tmpvector = np.array(sp2mic) - np.array(sp2mic[i])
+            tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
             self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
 
-    def RoomMatMain(self,sp2mic, speakers,room_size, resolution,time_vect,filter_size, room_shape='square'):
+    def RoomMatMain(self, sp2mic, time_vect, room_shape='square'):
         '''
 
         :param sp2mic: TOA samples from each speaker to the microphone
@@ -200,10 +204,7 @@ class RoomMatrix(object):
         cols = len(sp2mic[0])
         timer = 0
         locations_list = []
-        # initiate the room
-        self.DefineRoomSize(room_size['x'], room_size['y'], room_size['z'], resolution)
-        # self.DefineShape(room_shape)  # need to write if the room is not square.
-        self.DefineSpeakers(speakers)
+
         # calculate the Euclidean matrix. (LUT)
         self.CalcDistMatrix()
         # Generate relevant TDOAs matrices
@@ -223,7 +224,7 @@ class RoomMatrix(object):
 
             # find best match in LUT
             # if considered only one tdoa calculation
-            mic_location = self.FindBestMatch(current_tdoa1)
+            mic_location = self.FindBestMatch(current_tdoa1)#,mode='corr')
             # mic_location = self.WeightBestMatch(current_tdoa1,current_tdoa2,current_tdoa3,current_tdoa4)
             locations_list.append([time_vect[i], mic_location])
 
