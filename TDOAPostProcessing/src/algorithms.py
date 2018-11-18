@@ -4,14 +4,16 @@ from scipy.spatial import distance
 from time import time
 from termcolor import colored
 import itertools
+from collections import OrderedDict as OD
+from matplotlib import pyplot as plt
 
-
+plotting = False
 class ChanAlgo():
 
     def __init__(self):
         self.wakeuptime = time()
         self.location_list = []
-        self.speedofvoice = 343.0
+        self.speedofvoice = 343.21
         self.dim = 3
         self.res = 0.01  # Tracking Resolution
 
@@ -96,7 +98,7 @@ class TaylorLS():
     def __init__(self):
         self.wakeuptime = time()
         self.location_list = []
-        self.speedofvoice = 343.0
+        self.speedofvoice = 343.21
         self.dim = 3
         self.res = 0.01  # Tracking Resolution
 
@@ -108,7 +110,7 @@ class RoomMatrix(object):
         self.resolution = res
         self.speakers = {}
         self.EuclideanDistance = {}
-        self.speedofvoice = 343.0
+        self.speedofvoice = 343.21
         self.wakeup_time = time()
         self.finish_time = 0
 
@@ -141,12 +143,12 @@ class RoomMatrix(object):
                                          self.EuclideanDistance['sp4'].reshape(self.dimx * self.dimy * self.dimz, 1)))
 
     def CalcTDOMat(self):
-        self.TDOAmats = {}
+        self.TDOAmats = OD()
         tmp = self.mat4corr / float(self.speedofvoice)
         for i in range(4):
             tmpvector = np.tile(tmp[:,i], 4)
             tmpvector = np.transpose(tmpvector.reshape(4,len(tmp)))
-            self.TDOAmats['TDOA_from_sp' + str(i)] = tmp - tmpvector
+            self.TDOAmats['TDOA_from_sp' + str(i+1)] = tmp - tmpvector
 
     def CalcEucDist2mat(self,mat1, mat2):
         differ = (abs(mat1 - mat2)) ** 2
@@ -157,25 +159,63 @@ class RoomMatrix(object):
             tmp = np.tile(tdoa, self.dimx * self.dimy * self.dimz)
             tmp2 = tmp.reshape(self.dimx * self.dimy * self.dimz, 4)
             dist = self.CalcEucDist2mat(tmp2, self.TDOAmats['TDOA_from_sp1'])
-            from matplotlib import pyplot as plt
-            plt.figure()
-            plt.plot(dist)
-            plt.grid()
-            plt.show()
+            if plotting:
+                self.plotbytapsonly(dist, 'Room Euclidien Distance from measurement')
             best = np.argmin(dist)
             error = min(dist)
         elif mode == 'corr':
             k = np.dot(self.TDOAmats['TDOA_from_sp1'], tdoa)
-            from matplotlib import pyplot as plt
-            plt.figure()
-            plt.plot(k)
-            plt.grid()
-            plt.show()
+            if plotting:
+                self.plotbytapsonly(k, 'Room Euclidien Distance correlation from measurement')
             best = np.argmax(k)
             error = max(k)
 
         return self.indextolocation(best)
 
+    def plotbytapsonly(self,sig, title):
+
+        plt.plot(sig)
+        plt.title(title)
+        plt.grid()
+
+    def WeightBestMatch(self, tdoa_list, mode='distance',consideration='all'):
+        dist = []
+        legend = []
+        if plotting:
+            plt.figure()
+        for i in range(len(tdoa_list)):
+            tmp = np.tile(tdoa_list[i], self.dimx * self.dimy * self.dimz)
+            tmp2 = tmp.reshape(self.dimx * self.dimy * self.dimz, 4)
+            Tdoa_mat_keys = self.TDOAmats.keys()
+            if mode == 'distance':
+                dist.append(self.CalcEucDist2mat(tmp2, self.TDOAmats[Tdoa_mat_keys[i]]))
+            elif mode == 'corr':
+                dist.append(np.dot(self.TDOAmats[Tdoa_mat_keys[i]], tdoa_list[i]))
+            if plotting:
+                self.plotbytapsonly(dist[i],'Room Euclidien Distance from measurement')
+            legend.append(str(i))
+        if plotting:
+            plt.legend(legend)
+            plt.show()
+
+        # find shared best point:
+        if consideration == 'all':
+            costfunction = np.sqrt(dist[0]**2 + dist[1]**2 + dist[2]**2 + dist[3]**2)
+        elif consideration == '1':
+            costfunction = dist[0]
+
+        if plotting:
+            plt.figure()
+            self.plotbytapsonly(costfunction, 'Room Euclidien Distance from measurement')
+            plt.show()
+
+        if mode == 'distance':
+            best = np.argmin(costfunction)
+        elif mode == 'corr':
+            best = np.argmax(costfunction)
+        error = costfunction[best]
+
+        return self.indextolocation(best), error
 
     def indextolocation(self,index):
         x = int(np.floor(index/(self.dimy * self.dimz)))
@@ -183,10 +223,9 @@ class RoomMatrix(object):
         z = int(index - x * (self.dimy * self.dimz) - y * self.dimz)
         return self.room_mat[x, y, z, :]
 
-
     def Sp2MicToTDOA(self,sp2mic):
         rows = len(sp2mic)
-        self.measuredTDOA_vectors = {}
+        self.measuredTDOA_vectors = OD()
         for i in range(rows):
             tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
             self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
@@ -221,12 +260,13 @@ class RoomMatrix(object):
             current_tdoa3 = self.measuredTDOA_vectors['TDOA_from_sp3'][i]
             current_tdoa4 = self.measuredTDOA_vectors['TDOA_from_sp4'][i]
 
-
             # find best match in LUT
             # if considered only one tdoa calculation
-            mic_location = self.FindBestMatch(current_tdoa1)#,mode='corr')
-            # mic_location = self.WeightBestMatch(current_tdoa1,current_tdoa2,current_tdoa3,current_tdoa4)
-            locations_list.append([time_vect[i], mic_location])
+            # mic_location = self.FindBestMatch(current_tdoa1)#,mode='corr')
+            mic_location, location_error = self.WeightBestMatch([current_tdoa1,current_tdoa2,current_tdoa3,current_tdoa4])#, consideration='1')
+
+            locations_list.append([time_vect[i], mic_location, location_error])
+
 
         self.finish_time = time()
         print "algorithm time : {}".format(self.finish_time - self.wakeup_time)

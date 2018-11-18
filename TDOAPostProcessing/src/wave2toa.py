@@ -1,6 +1,7 @@
 import csv
 import wave
 import numpy as np
+from pandas import DataFrame as df
 import time
 import os
 from scipy import signal
@@ -181,6 +182,7 @@ class Speaker(object):
         self.params = {}
         self.proccessed_signal = SignalHandler()
         self.unfiltered_signal = {}
+        self.corr_peaks_1 = []
 
     def CutSigByPeaks(self, ind, peaks, filter_size):
         if ind >= (len(peaks) - 1):
@@ -206,10 +208,10 @@ class Speaker(object):
         plt.plot(self.part_rec_time, self.curr_sig)
         plt.show()
 
-    def BuildChirp(self, freqs_dict, Fs, ch_time, mode):
+    def BuildChirp(self, freqs_dict, Fs, ch_time, mode, matlab_path):
         # tt = np.linspace(0,0.001, Fs*0.001)
         tt = np.linspace(0, ch_time, int(Fs*ch_time))
-        matlab_chirps = io.loadmat('../inputs/chirp_blackman_harris_5ms_Fs500000.mat')
+        matlab_chirps = io.loadmat(matlab_path)
         chirps = matlab_chirps['allchirp']
         self.unfiltered_signal = {'Fs': Fs, 'low_freq': freqs_dict[str(self.id)][1],
                                   'high_freq': freqs_dict[str(self.id)][0], 'chirp_time': ch_time}
@@ -289,7 +291,7 @@ class Speaker(object):
         
     '''
 
-    def Define_ID(self,my_id, freqs_dict, Fs, ch_time):
+    def Define_ID(self,my_id, freqs_dict, Fs, ch_time, matlab_path):
         '''
         define all params , generate signals for correlation, load matlab TX signals ,
         filters record following to chirp parameters
@@ -299,7 +301,7 @@ class Speaker(object):
         :return:
         '''
         self.id = my_id
-        self.chirp, self.matlab_chirp = self.BuildChirp(freqs_dict, Fs, ch_time, 1)
+        self.chirp, self.matlab_chirp = self.BuildChirp(freqs_dict, Fs, ch_time, 1, matlab_path)
 
     def DefineLocation(self,op,x=0.0,y=0.0,z=0.0):
         if op == 'csv':
@@ -361,14 +363,7 @@ class Speaker(object):
 if __name__ == '__main__':
 
     sp_list = [Speaker(), Speaker(), Speaker(), Speaker()]
-    # speakers_frequencies = {'1': [42000, 37000],
-    #                         '2': [35000, 30000],
-    #                         '3': [28000, 23000],
-    #                         '4': [21000, 16000]}
-    # speakers_frequencies = {'1': [20000, 28000],
-    #                         '2': [32000, 40000],
-    #                         '3': [44000, 52000],
-    #                         '4': [56000, 64000]}
+
     speakers_frequencies = {'1': [20000, 27000],
                             '2': [27000, 34000],
                             '3': [34000, 41000],
@@ -377,23 +372,26 @@ if __name__ == '__main__':
                             '2': [3.9, 0.0, 2.25],
                             '3': [0.65, 3.8, 2.23],
                             '4': [3.9, 4.04, 1.52]}
-    chirp_time = 0.001
+
+    chirp_time = 0.005
     filter_size = 1001
+    matlab_path = '../inputs/chirp_blackman_harris_5ms_Fs500000.mat'
+    record_path = '../inputs/blackmanharris5ms/4.WAV'
 
-    algorithm = int(raw_input("choose algorithm:\n\t(1) Chan Algorithm\n\t"
-                              "(2) Taylor Algorithm\n\t(3) Room LUT Algorithm\n\t"
-                              "(4) All Algorithms").strip())
-
+    # algorithm = int(raw_input("choose algorithm:\n\t(1) Chan Algorithm\n\t"
+    #                           "(2) Taylor Algorithm\n\t(3) Room LUT Algorithm\n\t"
+    #                           "(4) All Algorithms").strip())
+    algorithm = 3
     utils_obj = UTILS()
     record = recwav()
-    record.change_path(os.path.abspath('../inputs/blackmanharris5ms/1.WAV'),'in')
+    record.change_path(os.path.abspath(record_path),'in')
     record.PlotSignal('blackmanharris5ms')
-    record.PlotFFT(record.path)
+    # record.PlotFFT(record.path)
     # record.Spectogram()
 
     # define speaker parameters and filtering signals according to speakers frequencies
     for i in range(len(sp_list)):
-        sp_list[i].Define_ID(i+1, speakers_frequencies, record.sample_rate, chirp_time)
+        sp_list[i].Define_ID(i+1, speakers_frequencies, record.sample_rate, chirp_time, matlab_path)
         sp_list[i].DefineLocation('s',
                                   speakers_locations_d[str(sp_list[i].id)][0],
                                   speakers_locations_d[str(sp_list[i].id)][1],
@@ -406,13 +404,30 @@ if __name__ == '__main__':
         sp_list[i].proccessed_signal.BPF(filter_size,plotting=plotting)
         sp_list[i].peaks, sp_list[i].peaks_height = signal.find_peaks(
             sp_list[i].proccessed_signal.filtered_signal,
-            height=int(0.7*(max(sp_list[i].proccessed_signal.filtered_signal))),
+            height=int(0.6*(max(sp_list[i].proccessed_signal.filtered_signal))),
             distance=50000)
         sp_list[i].correl1, sp_list[i].correl2 = utils_obj.CorrSpeakerSig(sp_list[i])
         sp_list[i].corr_peaks, sp_list[i].corr_peaks_height = signal.find_peaks(
             sp_list[i].correl1,
-            height=int(0.7*(max(sp_list[i].correl1))),
+            height=int(0.6*(max(sp_list[i].correl1))),
             distance=50000)
+        sp_list[i].corr_peaks_test, sp_list[i].corr_peaks_height_test = signal.find_peaks(
+            sp_list[i].correl1,
+            height=48000,
+            distance=500)
+
+    for i in range(len(sp_list[0].corr_peaks)):
+        min_peak = min([sp_list[j].corr_peaks[i] for j in range(len(sp_list))])
+        # first_sp = np.argmin(ith_peaks)
+
+        for sp in sp_list:
+            a = sp.corr_peaks_test - min_peak
+            for k in range(len(a)):
+                if a[k] < 0:
+                    a[k] = 10000000000
+            loac = np.argmin(a)
+            # sp.corr_peaks_1.append(sp.corr_peaks_test[loac])
+            sp.corr_peaks[i] = sp.corr_peaks_test[loac]
 
 
     if plotting:
@@ -452,13 +467,16 @@ if __name__ == '__main__':
             plt.plot(np.zeros_like(record.signal), "--", color="gray")
             plt.show()
 
-        delay = (filter_size - 1) / 2 + int(len(sp_list[0].chirp) / 2)
+        # delay = (filter_size - 1) / 2 + int(len(sp_list[0].chirp) / 2)
         sum = 0
         for sp in sp_list:
-            sp.peaks_after_delay = sp.peaks - delay
+            # sp.peaks_after_delay = sp.corr_peaks - delay
+            sp.peaks_after_delay = sp.corr_peaks
             sp.peaks_time_stamps = sp.peaks_after_delay / float(sp.proccessed_signal.Fs)
             sum += sp.peaks_time_stamps
-        timestamps = sum / float(len(sp_list)) - 3 * (10 ** -3)
+        timestamps = sum / float(len(sp_list)) - 5 * (10 ** -3)
+
+
         # for i in range(len(peaks)):
         #     # record.CutCurrSig()
         #     # record.CutSigByPeaks(i, peaks, filter_size)
@@ -480,10 +498,6 @@ if __name__ == '__main__':
                 plt.plot(sp.proccessed_signal.record_time_with_filter_delay,
                          sp.proccessed_signal.filtered_signal)
                 plt.plot(corr_time_vect,sp.correl1)
-                # plt.plot(sp.unfiltered_signal['time_vect'],
-                #          sp.correl2[:len(sp.unfiltered_signal['signal'])])
-                # plt.plot(sp.peaks, sp.proccessed_signal.filtered_signal[sp.peaks], "x")
-                # plt.plot(np.zeros_like(sp.proccessed_signal.filtered_signal), "--", color="gray")
                 plt.grid()
                 for i in range(len(sp.peaks)):
                     print ("*" * 50 + "\n") * 3
@@ -499,6 +513,13 @@ if __name__ == '__main__':
                 plt.plot(corr_time_vect, sp.correl1)
             plt.legend(["sp1", "sp2", "sp3", "sp4"])
             plt.show()
+            plt.figure()
+            # for sp in sp_list:
+            #     plt.plot(sp.correl1)
+            #     # plt.plot(sp.correl2)
+            # plt.legend(["sp1", "sp2", "sp3", "sp4"])
+            # # plt.legend(["sp1", "sp1-no filt", "sp2", "sp2-no filt", "sp3", "sp3-no filt", "sp4", "sp4-no filt"])
+            # plt.show()
 
 
         for i in range(len(sp_list[0].peaks_time_stamps)):
@@ -506,36 +527,17 @@ if __name__ == '__main__':
                              "toa_sp_2": sp_list[1].peaks_time_stamps[i],
                              "toa_sp_3": sp_list[2].peaks_time_stamps[i],
                              "toa_sp_4": sp_list[3].peaks_time_stamps[i]})
-
-    # toa, max_corr = utils_obj.FindTOA(corr_list, record, len(sp.chirp))
-
-    # writer.writerow({"toa_sp_1": toa[0], "toa_sp_2": toa[1], "toa_sp_3": toa[2],
-    #                  "toa_sp_4": toa[3], "corr_1": max_corr[0], "corr_2": max_corr[1],
-    #                  "corr_3": max_corr[2], "corr_4": max_corr[3]})
-    # iterr += 1
-
     rec_dict = utils_obj.csv2dict(record.toa_csv_path,{"toa_sp_1": [],
                                                        "toa_sp_2": [],
                                                        "toa_sp_3": [],
                                                        "toa_sp_4": []})
-
     print colored("Finished parsing wav file","green")
-
     sp2mic = []
     print colored("generate sp2mic list", "blue")
-    # plt.figure(5)
-    # plt.title('toa')
-
-    # xx = rec_dict["iteration"]
-    # for key in rec_dict.keys():
-    #     if key.startswith("toa"):
-    #         sp2mic.append(rec_dict[key])
-
     sp2mic = [rec_dict['toa_sp_1'],
               rec_dict['toa_sp_2'],
               rec_dict['toa_sp_3'],
               rec_dict['toa_sp_4']]
-
     sp_location = utils_obj.buildSpeakersLocationMatrix(sp_list)
 
     if algorithm == 1:
@@ -546,10 +548,8 @@ if __name__ == '__main__':
         print "TBD"
         results_dict = {}
     elif algorithm == 3:
-        LUT_obj = algos.RoomMatrix(3.9, 4.04, 2.4, sp_list, res=0.1)
+        LUT_obj = algos.RoomMatrix(3.9, 4.04, 2.4, sp_list, res=0.05)
         location_list = LUT_obj.RoomMatMain(sp2mic,timestamps,'square')
-
-
     elif algorithm == 4:
         chan = algos.ChanAlgo()
         LUT_obj = algos.RoomMatrix()
@@ -566,12 +566,19 @@ if __name__ == '__main__':
         # res_dict_taylor = utils_obj.res2csv(record.time_samples_vect, location_list_taylor, path_taylor)  # TBD
 
     if algorithm < 4:
-        results_dict = utils_obj.res2csv(record.time_samples_vect,location_list,record.results_path)
+        results_dict = utils_obj.res2csv(location_list,record.results_path)
 
-    # print colored('Chan_Algorithm_finished', 'green')
-    # for i in results_dict["Iteration"]:
-    #     i = int(i)
-    #     print colored("T:{0} , X:{1}, Y:{2}, Z:{3}".format(results_dict["Time [sec]"][i - 1],
-    #                                                        results_dict["X [m]"][i - 1],
-    #                                                        results_dict["Y [m]"][i - 1],
-    #                                                        results_dict["Z [m]"][i - 1]), "blue")
+    res2print = df(results_dict)
+    print colored(res2print,'green')
+
+
+
+
+    # speakers_frequencies = {'1': [42000, 37000],
+    #                         '2': [35000, 30000],
+    #                         '3': [28000, 23000],
+    #                         '4': [21000, 16000]}
+    # speakers_frequencies = {'1': [20000, 28000],
+    #                         '2': [32000, 40000],
+    #                         '3': [44000, 52000],
+    #                         '4': [56000, 64000]}

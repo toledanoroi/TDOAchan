@@ -3,6 +3,8 @@ import scipy.signal
 import csv
 import os
 from scipy import signal
+import statistics as stats
+from math import exp , sqrt
 
 
 class UTILS(object):
@@ -69,16 +71,16 @@ class UTILS(object):
                     my_dict[key].append(float(value))
         return my_dict
 
-    def res2csv(self,time_vect,locations,path):
+    def res2csv(self,locations,path):
         with open(path, 'wb') as fout:
-            writer = csv.DictWriter(fout, fieldnames=["Iteration", "Time [sec]", "X [m]", "Y [m]", "Z [m]"])
+            writer = csv.DictWriter(fout, fieldnames=["Iteration", "Time [sec]", "X [m]", "Y [m]", "Z [m]", "Error"])
             writer.writeheader()
             iterr = 1
-            for ind in range(len(time_vect)):
-                writer.writerow({"Iteration": iterr, "Time [sec]":time_vect[ind],
-                                 "X [m]":locations[ind][0],"Y [m]":locations[ind][1],"Z [m]":locations[ind][2]})
+            for locat in locations:
+                writer.writerow({"Iteration": iterr, "Time [sec]":locat[0],
+                                 "X [m]":locat[1][0],"Y [m]":locat[1][1],"Z [m]":locat[1][2],"Error":locat[2]})
                 iterr += 1
-        results_dict = self.csv2dict(path,{"Iteration":[], "Time [sec]":[],"X [m]":[],"Y [m]":[],"Z [m]":[]})
+        results_dict = self.csv2dict(path,{"Iteration": [], "Time [sec]": [], "X [m]": [], "Y [m]": [], "Z [m]": [], "Error": []})
         return results_dict
 
     def buildSpeakersLocationMatrix(self,sp_list):
@@ -136,6 +138,35 @@ class UTILS(object):
         plt.show()
         return {'signal':signal, 'time_vect':record_time_vector, 'sample_rate':Fs, 'total_time':total_time}
 
+    def CalcGaussianParams_nD(self,vectors):
+        mean_list = []
+        std_list = []
+        variance_list = []
+        median_list = []
+        for vec in vectors:
+            mean_list.append(stats.mean(vec))
+            std_list.append(stats.stdev(vec))
+            variance_list.append(stats.variance(vec))
+            median_list.append(stats.median(vec))
+
+        return {'mean': mean_list,
+                'stdev': std_list,
+                'variance': variance_list,
+                'median': mean_list
+                }
+
+    def GaussianFunc(self,sample,statistics_dict):
+        if len(sample) != len(statistics_dict['mean']):
+            raise ValueError()
+        frac = 0
+        for i in range(len(sample)):
+            frac += self.ExpFrac(sample[i],statistics_dict['mean'][i],statistics_dict['variance'][i])
+        return exp(-1 * frac)
+
+    def ExpFrac(self,x,mu,var):
+        return ((x-mu) ** 2) / (2 * var)
+
+
 
 class SignalHandler(object):
     def __init__(self):
@@ -166,8 +197,8 @@ class SignalHandler(object):
 
 
         self.h1 = signal.firwin(numtaps=n, cutoff=[cf - pbw,cf + pbw],pass_zero=False, nyq=self.Fs / 2)
-        if plotting:
-            self.mfreqz(self.h1)
+        # if plotting:
+        #     self.mfreqz(self.h1)
         self.filtered_signal = signal.convolve(self.signal, self.h1)
         self.record_time_with_filter_delay = np.linspace(0, float(len(self.filtered_signal)) / self.Fs, num=len(self.filtered_signal))
 
