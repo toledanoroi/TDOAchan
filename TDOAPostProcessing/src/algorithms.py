@@ -223,38 +223,60 @@ class RoomMatrix(object):
         z = int(index - x * (self.dimy * self.dimz) - y * self.dimz)
         return self.room_mat[x, y, z, :]
 
-    def Sp2MicToTDOA(self,sp2mic):
+    def Sp2MicToTDOA(self,sp2mic,avg_list,use_avg,time_vect):
         rows = len(sp2mic)
         self.measuredTDOA_vectors = OD()
         for i in range(rows):
             tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
             self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
+        if use_avg:
+            self.measuredTDOA_vectors ,time_vect = self.AveragingSamples(avg_list,time_vect)
+        return time_vect
 
-    def RoomMatMain(self, sp2mic, time_vect, room_shape='square'):
+    def AveragingSamples(self,avg_list,time_vect):
+        from statistics import mean
+        v = [[],[],[],[]]
+        time_avg = []
+        v_avg = {'TDOA_from_sp1':[],
+                 'TDOA_from_sp2': [],
+                 'TDOA_from_sp3': [],
+                 'TDOA_from_sp4': []
+                 }
+        last = 0
+        curr = 0
+        for avg in avg_list:
+            curr += avg
+            for i in range(len(v)):
+                v[i] = self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)][last:curr]
+                v_avg['TDOA_from_sp' + str(i+1)].append(mean(v[i]))
+                time_avg.append(mean(time_avg[last:curr]))
+            last = curr
+
+        return v_avg, time_avg
+
+    def RoomMatMain(self, sp2mic, time_vect, avg_list, room_shape='square',use_avg=False):
         '''
-
         :param sp2mic: TOA samples from each speaker to the microphone
-        :param speakers: list of 4 speakers. wave2toa.Speaker()
-        :param room_size: dictionary of the sizes in each axis of the room. {'x': ,'y':, 'z':} squaring the room
-        :param resolution: quantization quality
+        :param time_vect:
+        :param avg_list:
         :param room_shape:  if not square, canceling part of the defined room.
+        :param use_avg:
         :return: locations list of the microphone.
         '''
+
         cols = len(sp2mic[0])
-        timer = 0
         locations_list = []
 
         # calculate the Euclidean matrix. (LUT)
         self.CalcDistMatrix()
         # Generate relevant TDOAs matrices
         self.CalcTDOMat()
-        # convert measured TOA to TDOA
-        self.Sp2MicToTDOA(sp2mic)
+        # convert measured TOA to TDOA and averaging if needed
+        time_vect = self.Sp2MicToTDOA(sp2mic,use_avg,time_vect)
+
         #create matrix for match filter
 
         for i in range(len(time_vect)):
-            # need to create sp2mic - relevant timestamp   [TBD]
-            tmp_time = time_vect[i]
             current_tdoa1 = self.measuredTDOA_vectors['TDOA_from_sp1'][i]
             current_tdoa2 = self.measuredTDOA_vectors['TDOA_from_sp2'][i]
             current_tdoa3 = self.measuredTDOA_vectors['TDOA_from_sp3'][i]
@@ -262,9 +284,7 @@ class RoomMatrix(object):
 
             # find best match in LUT
             # if considered only one tdoa calculation
-            # mic_location = self.FindBestMatch(current_tdoa1)#,mode='corr')
             mic_location, location_error = self.WeightBestMatch([current_tdoa1,current_tdoa2,current_tdoa3,current_tdoa4])#, consideration='1')
-
             locations_list.append([time_vect[i], mic_location, location_error])
 
 

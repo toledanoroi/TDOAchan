@@ -14,6 +14,7 @@ import src.algorithms as algos
 from math import cos, sin, pi
 from utils import UTILS
 from utils import SignalHandler
+from collections import OrderedDict as OD
 
 plotting = False
 
@@ -382,6 +383,9 @@ if __name__ == '__main__':
     #                           "(2) Taylor Algorithm\n\t(3) Room LUT Algorithm\n\t"
     #                           "(4) All Algorithms").strip())
     algorithm = 3
+    use_averaging_before_calculation = True
+    time_factor = 2
+    avg_group_size = 5
     utils_obj = UTILS()
     record = recwav()
     record.change_path(os.path.abspath(record_path),'in')
@@ -532,12 +536,20 @@ if __name__ == '__main__':
                                                        "toa_sp_3": [],
                                                        "toa_sp_4": []})
     print colored("Finished parsing wav file","green")
-    sp2mic = []
+
+    # throw outliers according to 3D Gaussian model
+    TDOA_for_outliers = {"tdoa_sp_1": [rec_dict['toa_sp_1'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_1']))],
+                         "tdoa_sp_2": [rec_dict['toa_sp_2'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_2']))],
+                         "tdoa_sp_3": [rec_dict['toa_sp_3'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_3']))],
+                         "tdoa_sp_4": [rec_dict['toa_sp_4'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_4']))]
+                         }
+
+    rec_dict, avg_list = utils_obj.Throw_Outliers(rec_dict, TDOA_for_outliers, avg_group_size)
+
+
+
     print colored("generate sp2mic list", "blue")
-    sp2mic = [rec_dict['toa_sp_1'],
-              rec_dict['toa_sp_2'],
-              rec_dict['toa_sp_3'],
-              rec_dict['toa_sp_4']]
+    sp2mic = [rec_dict['toa_sp_1'], rec_dict['toa_sp_2'], rec_dict['toa_sp_3'], rec_dict['toa_sp_4']]
     sp_location = utils_obj.buildSpeakersLocationMatrix(sp_list)
 
     if algorithm == 1:
@@ -549,7 +561,8 @@ if __name__ == '__main__':
         results_dict = {}
     elif algorithm == 3:
         LUT_obj = algos.RoomMatrix(3.9, 4.04, 2.4, sp_list, res=0.05)
-        location_list = LUT_obj.RoomMatMain(sp2mic,timestamps,'square')
+        location_list = LUT_obj.RoomMatMain(sp2mic, timestamps, avg_list,
+                                            room_shape='square', use_avg=use_averaging_before_calculation)
     elif algorithm == 4:
         chan = algos.ChanAlgo()
         LUT_obj = algos.RoomMatrix()
@@ -564,6 +577,42 @@ if __name__ == '__main__':
         res_dict_chan = utils_obj.res2csv(record.time_samples_vect, location_list_chan,path_chan)
         res_dict_LUT = utils_obj.res2csv(record.time_samples_vect, location_list_lut, path_lut)
         # res_dict_taylor = utils_obj.res2csv(record.time_samples_vect, location_list_taylor, path_taylor)  # TBD
+
+
+    if not use_averaging_before_calculation:
+        from statistics import mean
+        number_of_groups = int(len(location_list)/(record.total_time / time_factor))
+        num_of_elements = int(len(location_list)/number_of_groups)
+
+        avg_time = []
+        avg_error = []
+        avg_location = [[],[],[]]
+        for k in range(number_of_groups):
+            v = [[], [], []]
+            locloc = location_list[k*num_of_elements: k*num_of_elements + num_of_elements]
+
+            for i in range(len(3)):
+                v[i] = [loc_[1][i] for loc_ in locloc]
+
+            outliers_list = utils_obj.Find_Outliers(v)
+
+            c = 0
+            v_new = [[],[],[]]
+            tmp_time = []
+            tmp_error = []
+            for k in range(len(outliers_list)):
+                if outliers_list[k] == False:
+                    for i in range(len(3)):
+                        v_new[i].append(v[i][k])
+                    tmp_time.append(locloc[k][0])
+                    tmp_error.append(locloc[k][2])
+            avg_time.append(mean(tmp_time))
+            avg_error.append(mean(tmp_error))
+            for i in range(len(3)):
+                avg_location[i].append(mean(v_new[i]))
+
+        location_list = [[avg_time[i], [avg_location[0][i],avg_location[1][i],avg_location[2][i]], avg_error[i]]
+                         for i in range(len(avg_time))]
 
     if algorithm < 4:
         results_dict = utils_obj.res2csv(location_list,record.results_path)

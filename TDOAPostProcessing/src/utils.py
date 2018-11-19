@@ -166,6 +166,59 @@ class UTILS(object):
     def ExpFrac(self,x,mu,var):
         return ((x-mu) ** 2) / (2 * var)
 
+    def Find_Outliers(self,vectors):
+        gauss_prm = self.CalcGaussianParams_nD(vectors)
+        is_outlier = []
+        for i in range(len(vectors[0])):
+            f = self.GaussianFunc([v[i] for v in vectors],gauss_prm)
+            if f < exp(-1.5):                                   # distance of 3 sigmas in all dimentions
+                is_outlier.append(True)
+            else:
+                is_outlier.append(False)
+
+        return is_outlier
+
+
+    def Throw_Outliers(self,dict_r, dict_im, dim, keys=["toa_sp_1","toa_sp_2","toa_sp_3","toa_sp_4"]):
+        '''
+        This function cut samples to group in dim size , search for outliers and throw them from the data set.
+
+        :param dict_r: TOA samples dictionary
+        :param dict_im: TDOA samples dictionary
+        :param dim: samples groups size
+        :param keys: key for the new dictionary
+        :return: new TOA samples dictionary and list of the new groups sizes to average in the algorithm
+        '''
+        rec_dict1 = {keys[0]: [],
+                     keys[1]: [],
+                     keys[2]: [],
+                     keys[3]: []
+                     }
+        to_average = []
+        v_r = [[],[],[],[]]
+        v = [[],[],[],[]]
+        for i in range(len(dict_im['tdoa_sp_1'])):
+            if len(v[3]) == 5 & len(v[1]) == 5 & len(v[2]) == dim:
+                outliers_list = self.Find_Outliers(v[1:])
+                c = 0
+                for k in range(len(outliers_list)):
+                    if outliers_list[k] == False:
+                        c += 1
+                        for j in range(len(v_r)):
+                            rec_dict1['toa_sp_' + str(j+1)].append(v_r[j][k])
+                to_average.append(c)
+                v_r = [[], [], [], []]
+                v = [[], [], []]
+
+            for l in range(len(v)):
+                v[l].append(dict_im['tdoa_sp_' + str(l + 1)][i])
+            for h in range(len(v_r)):
+                v_r[h].append(dict_r['toa_sp_' + str(h+1)][i])
+
+
+        return rec_dict1 , to_average
+
+
 
 
 class SignalHandler(object):

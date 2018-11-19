@@ -21,7 +21,7 @@ def TempratureMeasurement(device_name, ports, round_time, rounds):
     i = 0
     with daq.Task() as task:
         task.ai_channels.add_ai_thrmcpl_chan(device_name + '/ai' + ports)
-        while i< rounds:
+        while i < rounds:
             data = task.read(number_of_samples_per_channel=1)
             plt.scatter(i.data[0], c='r')
             plt.scatter(i.data[1], c='b')
