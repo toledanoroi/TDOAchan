@@ -36,6 +36,52 @@ class UTILS(object):
       win = win / len(win)
       return scipy.signal.convolve(x ** 2, win ** 2, mode="same")
 
+    def CreateTDOAlistBySPx(self,sp_number,data_dict):
+        TDOA_for_outliers = {"tdoa_sp_1": [data_dict['toa_sp_1'][i] - data_dict['toa_sp_' + str(sp_number)][i] for i in range(len(data_dict['toa_sp_1']))],
+                             "tdoa_sp_2": [data_dict['toa_sp_2'][i] - data_dict['toa_sp_' + str(sp_number)][i] for i in range(len(data_dict['toa_sp_2']))],
+                             "tdoa_sp_3": [data_dict['toa_sp_3'][i] - data_dict['toa_sp_' + str(sp_number)][i] for i in range(len(data_dict['toa_sp_3']))],
+                             "tdoa_sp_4": [data_dict['toa_sp_4'][i] - data_dict['toa_sp_' + str(sp_number)][i] for i in range(len(data_dict['toa_sp_4']))]
+                             }
+        return TDOA_for_outliers
+
+    def Sp2MicToTDOA(self,sp2mic):
+        from collections import OrderedDict as OD
+        rows = len(sp2mic)
+        measuredTDOA_vectors = OD()
+        for i in range(rows):
+            tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
+            measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
+        return measuredTDOA_vectors
+
+    def AveragingSamples(self,avg_list,time_vect,avg_dim,TDOA_vect):
+        from statistics import mean
+        from collections import OrderedDict as OD
+        v = [[],[],[],[]]
+        time_avg = []
+        v_avg = OD()
+        v_avg['TDOA_from_sp1'] = []
+        v_avg['TDOA_from_sp2'] = []
+        v_avg['TDOA_from_sp3'] = []
+        v_avg['TDOA_from_sp4'] = []
+
+        last = 0
+        last_ = 0
+        curr_ = 0
+        curr = 0
+        for avg in avg_list:
+            curr += avg
+            curr_ += avg_dim
+            for i in range(len(v)):
+                v[i] = TDOA_vect['TDOA_from_sp' + str(i+1)][last:curr]
+                v_avg['TDOA_from_sp' + str(i+1)].append([mean([k[j] for k in v[i]]) for j in range(len(v[i][0]))])
+            time_avg.append(mean(time_vect[last_:curr_]))
+            last = curr
+            last_ = curr_
+
+        return v_avg, time_avg
+
+
+
     def CorrSpeakerSig(self, speaker):
         a = np.correlate(speaker.proccessed_signal.filtered_signal, speaker.matlab_chirp, 'full')
         b = np.correlate(speaker.proccessed_signal.signal, speaker.matlab_chirp, 'full')
@@ -236,7 +282,7 @@ class UTILS(object):
         ax.set_ylabel(labels[1])
         ax.set_zlabel(labels[2])
         ax.set_title(title)
-        Axes3D.set_xlim(ax, left=limits[0][1], right=limits[0][0])
+        Axes3D.set_xlim(ax, right=limits[0][1], left=limits[0][0])
         Axes3D.set_ylim(ax, bottom=limits[1][0], top=limits[1][1])
         Axes3D.set_zlim(ax, bottom=limits[2][0], top=limits[2][1])
 

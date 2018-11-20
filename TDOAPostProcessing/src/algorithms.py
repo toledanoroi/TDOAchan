@@ -6,31 +6,36 @@ from termcolor import colored
 import itertools
 from collections import OrderedDict as OD
 from matplotlib import pyplot as plt
+from src.utils import UTILS
 
 plotting = False
 class ChanAlgo():
 
-    def __init__(self):
+    def __init__(self, avg_dim=5, use_avg=False):
         self.wakeuptime = time()
         self.location_list = []
         self.speedofvoice = 343.21
         self.dim = 3
         self.res = 0.01  # Tracking Resolution
+        self.avg_dim = avg_dim
+        self.use_avg = use_avg
+        self.utils = UTILS()
 
-    def DDOA(self, TimeToSpeaker, SpeakerLocations):
-        tmp = []
-        toa = {}
+    def DDOA(self, TimeToSpeaker, SpeakerLocations, alreadyTDOA=False):
         ddoa = scipy.array([])
 
         # A = np.append(SpeakerLocations, TimeToSpeaker, axis=1)
-
-        TOA = np.zeros(4)
-        Rnm = []
-        for i in range(0, 4):
-            TOA[i] = TimeToSpeaker[i] - TimeToSpeaker[0]
-            # TOA[i] = TimeToSpeaker[i] - min(TimeToSpeaker)
-            Rnm.append(TOA[i] * self.speedofvoice)
-        # print TOA
+        #
+        # TOA = np.zeros(4)
+        if alreadyTDOA:
+            Rnm = TimeToSpeaker
+        else:
+            Rnm = [(TimeToSpeaker[i] - TimeToSpeaker[0]) * self.speedofvoice for i in range(4)]
+        # for i in range(0, 4):
+        #     TOA[i] = TimeToSpeaker[i] - TimeToSpeaker[0]
+        #     # TOA[i] = TimeToSpeaker[i] - min(TimeToSpeaker)
+        #     Rnm.append(TOA[i] * self.speedofvoice)
+        # # print TOA
         Rnm = np.matrix(Rnm)
         ddoa = np.append(SpeakerLocations, Rnm.T, axis=1)
         return ddoa
@@ -76,21 +81,40 @@ class ChanAlgo():
                 poslist.append((T.A.squeeze()))
         return poslist
 
-    def chan_main(self,sp2mic,sp_location):
+    def FilterRoom(self, location_list, room_dimension):
+        loc_list_filtered = []
+        for loc in location_list:
+            if (((loc[1][0] <= room_dimension[0][1]) & (loc[1][0] >= room_dimension[0][0])) &
+                    ((loc[1][1] <= room_dimension[1][1]) & (loc[1][1] >= room_dimension[1][0])) &
+                    ((loc[1][2] <= room_dimension[2][1]) & (loc[1][2] >= room_dimension[2][0]))):
+                loc_list_filtered.append(loc)
+            else:
+                print "The result exceeds the room's dimensions\n\t {}".format(loc)
+        return loc_list_filtered
 
-        rows = len(sp2mic)
+    def chan_main(self,sp2mic,sp_location,timestamps,avg_list):
+
         cols = len(sp2mic[0])
+
+        # add here averaging results after throwing them.
+        if self.use_avg:
+            TDOA_dict = self.utils.Sp2MicToTDOA(sp2mic)
+            measuredTDOA_vectors, timestamps = self.utils.AveragingSamples(avg_list, timestamps, self.avg_dim, TDOA_dict)
         for i in range(cols):
-            a = []
-            a.append(sp2mic[0][i])
-            a.append(sp2mic[1][i])
-            a.append(sp2mic[2][i])
-            a.append(sp2mic[3][i])
-            print (a,'red')
-            D = self.DDOA(a,sp_location)
+            if self.use_avg:
+                curr_tdoa = [[measuredTDOA_vectors['TDOA_from_sp' + str(sp_number)][i][k]
+                              for k in range(len(measuredTDOA_vectors['TDOA_from_sp1'][i]))]
+                             for sp_number in range(1, 5)]
+                D = self.DDOA(curr_tdoa[0], sp_location, alreadyTDOA=True)
+
+            else:
+                current_toa = [sp2mic[k][i] for k in range(len(sp2mic))]
+                D = self.DDOA(current_toa,sp_location)
+
             POS = self.doChanForFour(D)
-            print (POS,'red')
-            self.location_list.append(POS[0])
+            print POS
+
+            self.location_list.append([timestamps[i], POS[0], 0])
 
         return self.location_list
 

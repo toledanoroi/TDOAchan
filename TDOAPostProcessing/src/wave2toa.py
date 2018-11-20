@@ -321,7 +321,7 @@ if __name__ == '__main__':
 
     sp_list = [Speaker(), Speaker(), Speaker(), Speaker()]
     # if TOA already exist
-    TOA_path = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1542718040.csv'
+    TOA_path = ''    # '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1542718040.csv'
     speakers_frequencies = {'1': [20000, 27000],
                             '2': [27000, 34000],
                             '3': [34000, 41000],
@@ -342,12 +342,19 @@ if __name__ == '__main__':
     # algorithm = int(raw_input("choose algorithm:\n\t(1) Chan Algorithm\n\t"
     #                           "(2) Taylor Algorithm\n\t(3) Room LUT Algorithm\n\t"
     #                           "(4) All Algorithms").strip())
-    algorithm = 3
-    use_averaging_before_calculation = True
+    algorithm = 1
+    use_averaging_before_calculation = False
     time_factor = 2
     avg_group_size = 5
+    resolution = 0.05           # [m]
     utils_obj = UTILS()
     record = recwav()
+    if not (os.path.isfile(TOA_path) & TOA_path.endswith('.csv')):
+        record.change_path(os.path.abspath(record_path), 'in')
+        record.PlotSignal('blackmanharris5ms')
+        record.PlotFFT(record.path)
+        # record.Spectogram()
+
     for i in range(len(sp_list)):
         sp_list[i].Define_ID(i + 1, speakers_frequencies, record.sample_rate, chirp_time, matlab_path)
         sp_list[i].DefineLocation('s',
@@ -356,13 +363,7 @@ if __name__ == '__main__':
                                   speakers_locations_d[str(sp_list[i].id)][2])
 
     if not (os.path.isfile(TOA_path) & TOA_path.endswith('.csv')):
-        record.change_path(os.path.abspath(record_path), 'in')
-        record.PlotSignal('blackmanharris5ms')
-        record.PlotFFT(record.path)
-        record.Spectogram()
-
         # define speaker parameters and filtering signals according to speakers frequencies
-
         for i in range(len(sp_list)):
             # resampling(sp_list[i], record.sample_rate)
             sp_list[i].unfiltered_signal['signal'] = record.signal
@@ -519,11 +520,7 @@ if __name__ == '__main__':
 
     # throw outliers according to 3D Gaussian model
     if use_averaging_before_calculation:    # throw outliers only by tdoa_from_sp_1 samples calculation
-        TDOA_for_outliers = {"tdoa_sp_1": [rec_dict['toa_sp_1'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_1']))],
-                             "tdoa_sp_2": [rec_dict['toa_sp_2'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_2']))],
-                             "tdoa_sp_3": [rec_dict['toa_sp_3'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_3']))],
-                             "tdoa_sp_4": [rec_dict['toa_sp_4'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_4']))]
-                             }
+        TDOA_for_outliers = utils_obj.CreateTDOAlistBySPx(1,rec_dict)
         utils_obj.ScatterPlot3D(TDOA_for_outliers['tdoa_sp_2'], TDOA_for_outliers['tdoa_sp_3'], TDOA_for_outliers['tdoa_sp_4'],
                                 'TDOA results from sp1', ['TDOA_21 [sec]', 'TDOA_31 [sec]', 'TDOA_41 [sec]'],
                                 [(-0.001,-0.003), (-0.003,-0.005), (-0.005,-0.007)])
@@ -539,8 +536,11 @@ if __name__ == '__main__':
     sp_location = utils_obj.buildSpeakersLocationMatrix(sp_list)
 
     if algorithm == 1:
-        chan = algos.ChanAlgo()
-        location_list = chan.chan_main(sp2mic, sp_location)
+        chan = algos.ChanAlgo(avg_dim=avg_group_size,
+                              use_avg=use_averaging_before_calculation,
+                              )
+        location_list = chan.chan_main(sp2mic, sp_location, timestamps, avg_list)
+
     elif algorithm == 2:
         taylor_obj = algos.TaylorLS()
         print "TBD"
@@ -550,7 +550,8 @@ if __name__ == '__main__':
                                    room_sizes['y'],
                                    room_sizes['z'],
                                    sp_list,
-                                   res=0.05)
+                                   res=0.05,
+                                   avg_dim=avg_group_size)
         location_list = LUT_obj.RoomMatMain(sp2mic, timestamps, avg_list,
                                             room_shape='square', use_avg=use_averaging_before_calculation)
     elif algorithm == 4:
@@ -571,6 +572,12 @@ if __name__ == '__main__':
 
     if not use_averaging_before_calculation:
         from statistics import mean
+
+        if algorithm == 1:
+            location_list = chan.FilterRoom(location_list,[(0, room_sizes['x']),
+                                                           (0, room_sizes['y']),
+                                                           (0, room_sizes['z'])])
+
         number_of_groups = int(len(location_list)/(record.total_time / time_factor))
         num_of_elements = int(len(location_list)/number_of_groups)
 
@@ -586,7 +593,6 @@ if __name__ == '__main__':
 
             outliers_list = utils_obj.Find_Outliers(v)
 
-            c = 0
             v_new = [[],[],[]]
             tmp_time = []
             tmp_error = []
@@ -597,7 +603,10 @@ if __name__ == '__main__':
                     tmp_time.append(locloc[k][0])
                     tmp_error.append(locloc[k][2])
             avg_time.append(mean(tmp_time))
-            avg_error.append(mean(tmp_error))
+            if algorithm == 3: # LUT matrix
+                avg_error.append(mean(tmp_error))
+            else:
+                avg_error.append(0)
             for i in range(3):
                 avg_location[i].append(mean(v_new[i]))
 
@@ -615,14 +624,6 @@ if __name__ == '__main__':
 
     utils_obj.ScatterPlot3D(results_dict['X [m]'],results_dict['Y [m]'], results_dict['Z [m]'],
                             'Algrithm localization decision - location of microphone', ['X[m]', 'Y[m]', 'Z[m]'],
-                            [(0, LUT_obj.xlim), (0, LUT_obj.ylim), (0, LUT_obj.zlim)])
+                            [(0, room_sizes['x']), (0, room_sizes['y']), (0, room_sizes['z'])])
 
 
-    # speakers_frequencies = {'1': [42000, 37000],
-    #                         '2': [35000, 30000],
-    #                         '3': [28000, 23000],
-    #                         '4': [21000, 16000]}
-    # speakers_frequencies = {'1': [20000, 28000],
-    #                         '2': [32000, 40000],
-    #                         '3': [44000, 52000],
-    #                         '4': [56000, 64000]}
