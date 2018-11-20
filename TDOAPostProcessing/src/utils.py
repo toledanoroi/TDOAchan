@@ -4,7 +4,8 @@ import csv
 import os
 from scipy import signal
 import statistics as stats
-from math import exp , sqrt
+from math import exp
+from matplotlib import pyplot as plt
 
 
 class UTILS(object):
@@ -208,17 +209,38 @@ class UTILS(object):
                             rec_dict1['toa_sp_' + str(j+1)].append(v_r[j][k])
                 to_average.append(c)
                 v_r = [[], [], [], []]
-                v = [[], [], []]
+                v = [[], [], [], []]
 
             for l in range(len(v)):
                 v[l].append(dict_im['tdoa_sp_' + str(l + 1)][i])
             for h in range(len(v_r)):
                 v_r[h].append(dict_r['toa_sp_' + str(h+1)][i])
 
+            # add exception for the reminder
+
 
         return rec_dict1 , to_average
 
+    def ScatterPlot3D(self,x_pnt,y_pnt,z_pnt,title,labels,limits):
+        from mpl_toolkits.mplot3d import Axes3D
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+        # ax = Axes3D(fig)
+        # For each set of style and range settings, plot n random points in the box
+        # # defined by x in [23, 32], y in [0, 100], z in [zlow, zhigh].
+        # for c, m, zlow, zhigh in [('r', 'o', -50, -25), ('b', '^', -30, -5)]:
+        for i in range(len(x_pnt)):
+            ax.scatter(x_pnt[i], y_pnt[i], z_pnt[i], c='b', marker='o')
 
+        ax.set_xlabel(labels[0])
+        ax.set_ylabel(labels[1])
+        ax.set_zlabel(labels[2])
+        ax.set_title(title)
+        Axes3D.set_xlim(ax, left=limits[0][1], right=limits[0][0])
+        Axes3D.set_ylim(ax, bottom=limits[1][0], top=limits[1][1])
+        Axes3D.set_zlim(ax, bottom=limits[2][0], top=limits[2][1])
+
+        plt.show()
 
 
 class SignalHandler(object):

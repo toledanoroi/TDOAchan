@@ -11,7 +11,6 @@ from matplotlib import pyplot as plt
 import sys
 from termcolor import colored
 import src.algorithms as algos
-from math import cos, sin, pi
 from utils import UTILS
 from utils import SignalHandler
 from collections import OrderedDict as OD
@@ -318,53 +317,11 @@ class Speaker(object):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 if __name__ == '__main__':
 
     sp_list = [Speaker(), Speaker(), Speaker(), Speaker()]
-
+    # if TOA already exist
+    TOA_path = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1542718040.csv'
     speakers_frequencies = {'1': [20000, 27000],
                             '2': [27000, 34000],
                             '3': [34000, 41000],
@@ -373,6 +330,9 @@ if __name__ == '__main__':
                             '2': [3.9, 0.0, 2.25],
                             '3': [0.65, 3.8, 2.23],
                             '4': [3.9, 4.04, 1.52]}
+    room_sizes = {'x': 3.9,
+                  'y': 4.04,
+                  'z': 2.4}
 
     chirp_time = 0.005
     filter_size = 1001
@@ -388,163 +348,189 @@ if __name__ == '__main__':
     avg_group_size = 5
     utils_obj = UTILS()
     record = recwav()
-    record.change_path(os.path.abspath(record_path),'in')
-    record.PlotSignal('blackmanharris5ms')
-    # record.PlotFFT(record.path)
-    # record.Spectogram()
-
-    # define speaker parameters and filtering signals according to speakers frequencies
     for i in range(len(sp_list)):
-        sp_list[i].Define_ID(i+1, speakers_frequencies, record.sample_rate, chirp_time, matlab_path)
+        sp_list[i].Define_ID(i + 1, speakers_frequencies, record.sample_rate, chirp_time, matlab_path)
         sp_list[i].DefineLocation('s',
                                   speakers_locations_d[str(sp_list[i].id)][0],
                                   speakers_locations_d[str(sp_list[i].id)][1],
                                   speakers_locations_d[str(sp_list[i].id)][2])
 
-        # resampling(sp_list[i], record.sample_rate)
-        sp_list[i].unfiltered_signal['signal'] = record.signal
-        sp_list[i].unfiltered_signal['time_vect'] = record.rec_time
-        sp_list[i].proccessed_signal.defineParams(sp_list[i].unfiltered_signal)
-        sp_list[i].proccessed_signal.BPF(filter_size,plotting=plotting)
-        sp_list[i].peaks, sp_list[i].peaks_height = signal.find_peaks(
-            sp_list[i].proccessed_signal.filtered_signal,
-            height=int(0.6*(max(sp_list[i].proccessed_signal.filtered_signal))),
-            distance=50000)
-        sp_list[i].correl1, sp_list[i].correl2 = utils_obj.CorrSpeakerSig(sp_list[i])
-        sp_list[i].corr_peaks, sp_list[i].corr_peaks_height = signal.find_peaks(
-            sp_list[i].correl1,
-            height=int(0.6*(max(sp_list[i].correl1))),
-            distance=50000)
-        sp_list[i].corr_peaks_test, sp_list[i].corr_peaks_height_test = signal.find_peaks(
-            sp_list[i].correl1,
-            height=48000,
-            distance=500)
+    if not (os.path.isfile(TOA_path) & TOA_path.endswith('.csv')):
+        record.change_path(os.path.abspath(record_path), 'in')
+        record.PlotSignal('blackmanharris5ms')
+        record.PlotFFT(record.path)
+        record.Spectogram()
 
-    for i in range(len(sp_list[0].corr_peaks)):
-        min_peak = min([sp_list[j].corr_peaks[i] for j in range(len(sp_list))])
-        # first_sp = np.argmin(ith_peaks)
+        # define speaker parameters and filtering signals according to speakers frequencies
 
-        for sp in sp_list:
-            a = sp.corr_peaks_test - min_peak
-            for k in range(len(a)):
-                if a[k] < 0:
-                    a[k] = 10000000000
-            loac = np.argmin(a)
-            # sp.corr_peaks_1.append(sp.corr_peaks_test[loac])
-            sp.corr_peaks[i] = sp.corr_peaks_test[loac]
+        for i in range(len(sp_list)):
+            # resampling(sp_list[i], record.sample_rate)
+            sp_list[i].unfiltered_signal['signal'] = record.signal
+            sp_list[i].unfiltered_signal['time_vect'] = record.rec_time
+            sp_list[i].proccessed_signal.defineParams(sp_list[i].unfiltered_signal)
+            sp_list[i].proccessed_signal.BPF(filter_size,plotting=plotting)
+            sp_list[i].peaks, sp_list[i].peaks_height = signal.find_peaks(
+                sp_list[i].proccessed_signal.filtered_signal,
+                height=int(0.6*(max(sp_list[i].proccessed_signal.filtered_signal))),
+                distance=50000)
+            sp_list[i].correl1, sp_list[i].correl2 = utils_obj.CorrSpeakerSig(sp_list[i])
+            sp_list[i].corr_peaks, sp_list[i].corr_peaks_height = signal.find_peaks(
+                sp_list[i].correl1,
+                height=int(0.6*(max(sp_list[i].correl1))),
+                distance=50000)
+            sp_list[i].corr_peaks_test, sp_list[i].corr_peaks_height_test = signal.find_peaks(
+                sp_list[i].correl1,
+                height=48000,
+                distance=500)
 
+        for i in range(len(sp_list[0].corr_peaks)):
+            min_peak = min([sp_list[j].corr_peaks[i] for j in range(len(sp_list))])
+            # first_sp = np.argmin(ith_peaks)
 
-    if plotting:
-        print "plotting"
-        plt.figure()
-        count = 0
-        for sp in sp_list:
-            count += 1
-            plt.subplot(2, 2, count)
-            plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
-            plt.plot(sp.unfiltered_signal['time_vect'],
-                     sp.proccessed_signal.filtered_signal[:len(sp.unfiltered_signal['signal'])])
-            # plt.plot(sp.peaks, sp.proccessed_signal.filtered_signal[sp.peaks], "x")
-            # plt.plot(np.zeros_like(sp.proccessed_signal.filtered_signal), "--", color="gray")
-            plt.grid()
-        plt.show()
-        # count = 0
-        # fftd = {}
-        # freqsd = {}
-        # plt.figure(790)
-        # for sp in sp_list:
-        #     count += 1
-        #     fftd[str(sp.id)] = fftpkt.fftshift(fftpkt.fft(sp.proccessed_signal.filtered_signal))
-        #     freqsd[str(sp.id)] = fftpkt.fftshift(fftpkt.fftfreq(len(sp.proccessed_signal.filtered_signal), 1.0 / sp.proccessed_signal.Fs))
-        #     plt.subplot(2, 2, count)
-        #     plt.plot(freqsd[str(sp.id)], abs(fftd[str(sp.id)]))
-        # plt.show()
+            for sp in sp_list:
+                a = sp.corr_peaks_test - min_peak
+                for k in range(len(a)):
+                    if a[k] < 0:
+                        a[k] = 10000000000
+                loac = np.argmin(a)
+                # sp.corr_peaks_1.append(sp.corr_peaks_test[loac])
+                sp.corr_peaks[i] = sp.corr_peaks_test[loac]
 
-    with open(record.toa_csv_path, 'wb') as fout:
-        writer = csv.DictWriter(fout, fieldnames=["toa_sp_1", "toa_sp_2", "toa_sp_3", "toa_sp_4"])
-        writer.writeheader()
-        iterr = 1
-        peaks, _ = signal.find_peaks(record.signal, height=int(0.7*(max(record.signal))), distance=10000)
-        if plotting:
-            plt.plot(record.signal)
-            plt.plot(peaks, record.signal[peaks], "x")
-            plt.plot(np.zeros_like(record.signal), "--", color="gray")
-            plt.show()
-
-        # delay = (filter_size - 1) / 2 + int(len(sp_list[0].chirp) / 2)
-        sum = 0
-        for sp in sp_list:
-            # sp.peaks_after_delay = sp.corr_peaks - delay
-            sp.peaks_after_delay = sp.corr_peaks
-            sp.peaks_time_stamps = sp.peaks_after_delay / float(sp.proccessed_signal.Fs)
-            sum += sp.peaks_time_stamps
-        timestamps = sum / float(len(sp_list)) - 5 * (10 ** -3)
-
-
-        # for i in range(len(peaks)):
-        #     # record.CutCurrSig()
-        #     # record.CutSigByPeaks(i, peaks, filter_size)
-        #     # for sp in sp_list:
-        #     #     sp.CutSigByPeaks(i, peaks, filter_size)
-
-        # utils_obj.CorrWith4(sp_list)
-
-        corr_time_vect = np.linspace(0, float(len(sp_list[0].correl1)) / sp_list[0].proccessed_signal.Fs,
-                                     num=len(sp_list[0].correl1))
 
         if plotting:
+            print "plotting"
             plt.figure()
             count = 0
             for sp in sp_list:
                 count += 1
                 plt.subplot(2, 2, count)
                 plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
-                plt.plot(sp.proccessed_signal.record_time_with_filter_delay,
-                         sp.proccessed_signal.filtered_signal)
-                plt.plot(corr_time_vect,sp.correl1)
+                plt.plot(sp.unfiltered_signal['time_vect'],
+                         sp.proccessed_signal.filtered_signal[:len(sp.unfiltered_signal['signal'])])
+                # plt.plot(sp.peaks, sp.proccessed_signal.filtered_signal[sp.peaks], "x")
+                # plt.plot(np.zeros_like(sp.proccessed_signal.filtered_signal), "--", color="gray")
                 plt.grid()
-                for i in range(len(sp.peaks)):
-                    print ("*" * 50 + "\n") * 3
-                    # print "real_peak = {0}".format(peaks[i])
-                    print "real_peak_filtered = {0}".format(sp.peaks[i])
-                    print "corr peak = {0}".format(sp.corr_peaks[i])
-                    print "corr_peak - real_peak_filtered = {0}".format(sp.corr_peaks[i] - sp.peaks[i])
-                    print ("*" * 50 + "\n") * 3
             plt.show()
-
-            plt.figure()
-            for sp in sp_list:
-                plt.plot(corr_time_vect, sp.correl1)
-            plt.legend(["sp1", "sp2", "sp3", "sp4"])
-            plt.show()
-            plt.figure()
+            # count = 0
+            # fftd = {}
+            # freqsd = {}
+            # plt.figure(790)
             # for sp in sp_list:
-            #     plt.plot(sp.correl1)
-            #     # plt.plot(sp.correl2)
-            # plt.legend(["sp1", "sp2", "sp3", "sp4"])
-            # # plt.legend(["sp1", "sp1-no filt", "sp2", "sp2-no filt", "sp3", "sp3-no filt", "sp4", "sp4-no filt"])
+            #     count += 1
+            #     fftd[str(sp.id)] = fftpkt.fftshift(fftpkt.fft(sp.proccessed_signal.filtered_signal))
+            #     freqsd[str(sp.id)] = fftpkt.fftshift(fftpkt.fftfreq(len(sp.proccessed_signal.filtered_signal), 1.0 / sp.proccessed_signal.Fs))
+            #     plt.subplot(2, 2, count)
+            #     plt.plot(freqsd[str(sp.id)], abs(fftd[str(sp.id)]))
             # plt.show()
 
+        with open(record.toa_csv_path, 'wb') as fout:
+            writer = csv.DictWriter(fout, fieldnames=["toa_sp_1", "toa_sp_2", "toa_sp_3", "toa_sp_4"])
+            writer.writeheader()
+            iterr = 1
+            peaks, _ = signal.find_peaks(record.signal, height=int(0.7*(max(record.signal))), distance=10000)
+            if plotting:
+                plt.plot(record.signal)
+                plt.plot(peaks, record.signal[peaks], "x")
+                plt.plot(np.zeros_like(record.signal), "--", color="gray")
+                plt.show()
 
-        for i in range(len(sp_list[0].peaks_time_stamps)):
-            writer.writerow({"toa_sp_1": sp_list[0].peaks_time_stamps[i],
-                             "toa_sp_2": sp_list[1].peaks_time_stamps[i],
-                             "toa_sp_3": sp_list[2].peaks_time_stamps[i],
-                             "toa_sp_4": sp_list[3].peaks_time_stamps[i]})
-    rec_dict = utils_obj.csv2dict(record.toa_csv_path,{"toa_sp_1": [],
-                                                       "toa_sp_2": [],
-                                                       "toa_sp_3": [],
-                                                       "toa_sp_4": []})
+            # delay = (filter_size - 1) / 2 + int(len(sp_list[0].chirp) / 2)
+            _sum = 0
+            for sp in sp_list:
+                # sp.peaks_after_delay = sp.corr_peaks - delay
+                sp.peaks_after_delay = sp.corr_peaks
+                sp.peaks_time_stamps = sp.peaks_after_delay / float(sp.proccessed_signal.Fs)
+                _sum += sp.peaks_time_stamps
+            timestamps = _sum / float(len(sp_list)) - 5 * (10 ** -3)
+
+
+            # for i in range(len(peaks)):
+            #     # record.CutCurrSig()
+            #     # record.CutSigByPeaks(i, peaks, filter_size)
+            #     # for sp in sp_list:
+            #     #     sp.CutSigByPeaks(i, peaks, filter_size)
+
+            # utils_obj.CorrWith4(sp_list)
+
+            corr_time_vect = np.linspace(0, float(len(sp_list[0].correl1)) / sp_list[0].proccessed_signal.Fs,
+                                         num=len(sp_list[0].correl1))
+
+            if plotting:
+                plt.figure()
+                count = 0
+                for sp in sp_list:
+                    count += 1
+                    plt.subplot(2, 2, count)
+                    plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
+                    plt.plot(sp.proccessed_signal.record_time_with_filter_delay,
+                             sp.proccessed_signal.filtered_signal)
+                    plt.plot(corr_time_vect,sp.correl1)
+                    plt.grid()
+                    for i in range(len(sp.peaks)):
+                        print ("*" * 50 + "\n") * 3
+                        # print "real_peak = {0}".format(peaks[i])
+                        print "real_peak_filtered = {0}".format(sp.peaks[i])
+                        print "corr peak = {0}".format(sp.corr_peaks[i])
+                        print "corr_peak - real_peak_filtered = {0}".format(sp.corr_peaks[i] - sp.peaks[i])
+                        print ("*" * 50 + "\n") * 3
+                plt.show()
+
+                plt.figure()
+                for sp in sp_list:
+                    plt.plot(corr_time_vect, sp.correl1)
+                plt.legend(["sp1", "sp2", "sp3", "sp4"])
+                plt.show()
+                plt.figure()
+                # for sp in sp_list:
+                #     plt.plot(sp.correl1)
+                #     # plt.plot(sp.correl2)
+                # plt.legend(["sp1", "sp2", "sp3", "sp4"])
+                # # plt.legend(["sp1", "sp1-no filt", "sp2", "sp2-no filt", "sp3", "sp3-no filt", "sp4", "sp4-no filt"])
+                # plt.show()
+
+
+            for i in range(len(sp_list[0].peaks_time_stamps)):
+                writer.writerow({"toa_sp_1": sp_list[0].peaks_time_stamps[i],
+                                 "toa_sp_2": sp_list[1].peaks_time_stamps[i],
+                                 "toa_sp_3": sp_list[2].peaks_time_stamps[i],
+                                 "toa_sp_4": sp_list[3].peaks_time_stamps[i]})
+
+        rec_dict = utils_obj.csv2dict(record.toa_csv_path, {"toa_sp_1": [],
+                                                            "toa_sp_2": [],
+                                                            "toa_sp_3": [],
+                                                            "toa_sp_4": []})
+
+    else:
+        record.toa_csv_path = TOA_path
+        rec_dict = utils_obj.csv2dict(record.toa_csv_path, {"toa_sp_1": [],
+                                                            "toa_sp_2": [],
+                                                            "toa_sp_3": [],
+                                                            "toa_sp_4": []})
+
+        timestamps = [sum([rec_dict["toa_sp_" + str(i+1)][j]/len(rec_dict) - (5 * 10**(-3))
+                           for i in range(len(rec_dict))])
+                      for j in range(len(rec_dict["toa_sp_1"]))]
+
+
+
+
+
     print colored("Finished parsing wav file","green")
 
     # throw outliers according to 3D Gaussian model
-    TDOA_for_outliers = {"tdoa_sp_1": [rec_dict['toa_sp_1'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_1']))],
-                         "tdoa_sp_2": [rec_dict['toa_sp_2'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_2']))],
-                         "tdoa_sp_3": [rec_dict['toa_sp_3'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_3']))],
-                         "tdoa_sp_4": [rec_dict['toa_sp_4'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_4']))]
-                         }
+    if use_averaging_before_calculation:    # throw outliers only by tdoa_from_sp_1 samples calculation
+        TDOA_for_outliers = {"tdoa_sp_1": [rec_dict['toa_sp_1'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_1']))],
+                             "tdoa_sp_2": [rec_dict['toa_sp_2'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_2']))],
+                             "tdoa_sp_3": [rec_dict['toa_sp_3'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_3']))],
+                             "tdoa_sp_4": [rec_dict['toa_sp_4'][i] - rec_dict['toa_sp_1'][i] for i in range(len(rec_dict['toa_sp_4']))]
+                             }
+        utils_obj.ScatterPlot3D(TDOA_for_outliers['tdoa_sp_2'], TDOA_for_outliers['tdoa_sp_3'], TDOA_for_outliers['tdoa_sp_4'],
+                                'TDOA results from sp1', ['TDOA_21 [sec]', 'TDOA_31 [sec]', 'TDOA_41 [sec]'],
+                                [(-0.001,-0.003), (-0.003,-0.005), (-0.005,-0.007)])
 
-    rec_dict, avg_list = utils_obj.Throw_Outliers(rec_dict, TDOA_for_outliers, avg_group_size)
+        rec_dict, avg_list = utils_obj.Throw_Outliers(rec_dict, TDOA_for_outliers, avg_group_size)
+    else:
+        avg_list = [1] * len(rec_dict["toa_sp_1"])
 
 
 
@@ -560,7 +546,11 @@ if __name__ == '__main__':
         print "TBD"
         results_dict = {}
     elif algorithm == 3:
-        LUT_obj = algos.RoomMatrix(3.9, 4.04, 2.4, sp_list, res=0.05)
+        LUT_obj = algos.RoomMatrix(room_sizes['x'],
+                                   room_sizes['y'],
+                                   room_sizes['z'],
+                                   sp_list,
+                                   res=0.05)
         location_list = LUT_obj.RoomMatMain(sp2mic, timestamps, avg_list,
                                             room_shape='square', use_avg=use_averaging_before_calculation)
     elif algorithm == 4:
@@ -591,7 +581,7 @@ if __name__ == '__main__':
             v = [[], [], []]
             locloc = location_list[k*num_of_elements: k*num_of_elements + num_of_elements]
 
-            for i in range(len(3)):
+            for i in range(3):
                 v[i] = [loc_[1][i] for loc_ in locloc]
 
             outliers_list = utils_obj.Find_Outliers(v)
@@ -602,13 +592,13 @@ if __name__ == '__main__':
             tmp_error = []
             for k in range(len(outliers_list)):
                 if outliers_list[k] == False:
-                    for i in range(len(3)):
+                    for i in range(3):
                         v_new[i].append(v[i][k])
                     tmp_time.append(locloc[k][0])
                     tmp_error.append(locloc[k][2])
             avg_time.append(mean(tmp_time))
             avg_error.append(mean(tmp_error))
-            for i in range(len(3)):
+            for i in range(3):
                 avg_location[i].append(mean(v_new[i]))
 
         location_list = [[avg_time[i], [avg_location[0][i],avg_location[1][i],avg_location[2][i]], avg_error[i]]
@@ -621,6 +611,11 @@ if __name__ == '__main__':
     print colored(res2print,'green')
 
 
+    # need to add calculate error from expected value (Euclidean Distance)
+
+    utils_obj.ScatterPlot3D(results_dict['X [m]'],results_dict['Y [m]'], results_dict['Z [m]'],
+                            'Algrithm localization decision - location of microphone', ['X[m]', 'Y[m]', 'Z[m]'],
+                            [(0, LUT_obj.xlim), (0, LUT_obj.ylim), (0, LUT_obj.zlim)])
 
 
     # speakers_frequencies = {'1': [42000, 37000],

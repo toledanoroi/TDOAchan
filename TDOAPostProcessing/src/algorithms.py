@@ -103,7 +103,7 @@ class TaylorLS():
         self.res = 0.01  # Tracking Resolution
 
 class RoomMatrix(object):
-    def __init__(self,x,y,z,sp_list,res=0.1):
+    def __init__(self,x,y,z,sp_list,avg_dim=5,res=0.1):
         self.xlim = x
         self.ylim = y
         self.zlim = z
@@ -113,6 +113,7 @@ class RoomMatrix(object):
         self.speedofvoice = 343.21
         self.wakeup_time = time()
         self.finish_time = 0
+        self.avg_dim = avg_dim
 
         self.dimx = int(np.ceil(self.xlim/self.resolution)) + 1
         self.dimy = int(np.ceil(self.ylim/self.resolution)) + 1
@@ -230,27 +231,32 @@ class RoomMatrix(object):
             tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
             self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
         if use_avg:
-            self.measuredTDOA_vectors ,time_vect = self.AveragingSamples(avg_list,time_vect)
+            self.measuredTDOA_vectors, time_vect = self.AveragingSamples(avg_list,time_vect)
         return time_vect
 
     def AveragingSamples(self,avg_list,time_vect):
         from statistics import mean
         v = [[],[],[],[]]
         time_avg = []
-        v_avg = {'TDOA_from_sp1':[],
-                 'TDOA_from_sp2': [],
-                 'TDOA_from_sp3': [],
-                 'TDOA_from_sp4': []
-                 }
+        v_avg = OD()
+        v_avg['TDOA_from_sp1'] = []
+        v_avg['TDOA_from_sp2'] = []
+        v_avg['TDOA_from_sp3'] = []
+        v_avg['TDOA_from_sp4'] = []
+
         last = 0
+        last_ = 0
+        curr_ = 0
         curr = 0
         for avg in avg_list:
             curr += avg
+            curr_ += self.avg_dim
             for i in range(len(v)):
                 v[i] = self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)][last:curr]
-                v_avg['TDOA_from_sp' + str(i+1)].append(mean(v[i]))
-                time_avg.append(mean(time_avg[last:curr]))
+                v_avg['TDOA_from_sp' + str(i+1)].append([mean([k[j] for k in v[i]]) for j in range(len(v[i][0]))])
+            time_avg.append(mean(time_vect[last_:curr_]))
             last = curr
+            last_ = curr_
 
         return v_avg, time_avg
 
@@ -272,7 +278,7 @@ class RoomMatrix(object):
         # Generate relevant TDOAs matrices
         self.CalcTDOMat()
         # convert measured TOA to TDOA and averaging if needed
-        time_vect = self.Sp2MicToTDOA(sp2mic,use_avg,time_vect)
+        time_vect = self.Sp2MicToTDOA(sp2mic,avg_list, use_avg,time_vect)
 
         #create matrix for match filter
 
