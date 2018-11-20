@@ -81,11 +81,7 @@ class ChanAlgo():
         rows = len(sp2mic)
         cols = len(sp2mic[0])
         for i in range(cols):
-            a = []
-            a.append(sp2mic[0][i])
-            a.append(sp2mic[1][i])
-            a.append(sp2mic[2][i])
-            a.append(sp2mic[3][i])
+            a = [sp2mic[k][i] for k in range(len(sp2mic))]
             print (a,'red')
             D = self.DDOA(a,sp_location)
             POS = self.doChanForFour(D)
