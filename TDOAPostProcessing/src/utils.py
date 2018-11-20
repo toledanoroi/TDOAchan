@@ -242,6 +242,15 @@ class UTILS(object):
 
         plt.show()
 
+    def ClusteringnD(self,dim,data,time_vect):
+        '''
+        The function get data sets with dimention dim, generate vectors and search for groups with same parameters
+        :param dim: The dimention of one vector
+        :param data: vectors set
+        :return: dicitionary of groups groups = { 'g_1' : [<sample number> ,<timestamp>, <vector>], ... }
+        '''
+        pass
+
 
 class SignalHandler(object):
     def __init__(self):
