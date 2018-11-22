@@ -82,6 +82,13 @@ class ChanAlgo():
         return poslist
 
     def FilterRoom(self, location_list, room_dimension):
+        '''
+        check if the algorithm result is out of room dimensions range and filter it.
+        :param location_list: algorithm output : [<timestamp>,[<x>,<y>,<z>], <error>].
+                              error used only for LUT room matrix algorithm
+        :param room_dimension: list of 3 tuples, define the room size [(minx,maxx), (miny,maxy), (minz,maxz)]
+        :return: loc_list_filtered - filtered results
+        '''
         loc_list_filtered = []
         for loc in location_list:
             if (((loc[1][0] <= room_dimension[0][1]) & (loc[1][0] >= room_dimension[0][0])) &
@@ -92,8 +99,17 @@ class ChanAlgo():
                 print "The result exceeds the room's dimensions\n\t {}".format(loc)
         return loc_list_filtered
 
-    def chan_main(self,sp2mic,sp_location,timestamps,avg_list):
-
+    def chan_main(self, sp2mic, sp_location, timestamps, avg_list):
+        '''
+        main function of chan's algorithm . holds the algorithm sequence.
+        :param sp2mic: list of speaker TOAs to the microphone. [[<toa1>,<toa2>,<toa3>,<toa4>],...]
+        :param sp_location: speakers location in meters
+        :param timestamps: list of TOA events timestamp  (-5ms from averaged toa)
+        :param avg_list: int list, if needs averaging results. define the groups to average
+                        [<g1>,<g2>,<g3>..]
+        :return: list of all locations : [[<t1>,[<x>,<y>,<z>], <error>],...,[<t_final>,[<x>,<y>,<z>], <error>]].
+                 error used only for LUT room matrix algorithm.
+        '''
         cols = len(sp2mic[0])
 
         # add here averaging results after throwing them.
