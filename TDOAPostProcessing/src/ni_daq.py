@@ -12,7 +12,7 @@ def TxSignal(signal , device_name, ports, round_time):
     sleep(round_time)
 
 
-def RxSignal(signal , device_name, ports, round_time):
+def RxSignal(signal, device_name, ports, round_time):
     pass
 
 def TempratureMeasurement(device_name, ports, round_time, rounds):

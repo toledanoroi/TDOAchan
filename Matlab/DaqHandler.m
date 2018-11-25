@@ -2,7 +2,7 @@ function DaqHandler( mode ,loops, Fs, allchirp, pause_time,gain )
 %UNTITLED6 Summary of this function goes here
 %   Detailed explanation goes here
 for q = 1:loops
-        if mode==0 || mode==1 || mode==2
+        if mode==0 || mode==1 || mode==2 || mode==4
             for n=1:4
                 aoSession = daq.createSession('ni');
                 aiSession = daq.createSession('ni');

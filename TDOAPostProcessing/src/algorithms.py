@@ -1,7 +1,9 @@
 import numpy as np
 import scipy
+from scipy import io
 from scipy.spatial import distance
 from time import time
+from os.path import isfile
 from termcolor import colored
 import itertools
 from collections import OrderedDict as OD
@@ -11,15 +13,22 @@ from src.utils import UTILS
 plotting = False
 class ChanAlgo():
 
-    def __init__(self, avg_dim=5, use_avg=False):
+    def __init__(self, avg_dim=5, use_avg=False, Temprature_meas=''):
         self.wakeuptime = time()
         self.location_list = []
-        self.speedofvoice = 343.21
+
         self.dim = 3
         self.res = 0.01  # Tracking Resolution
         self.avg_dim = avg_dim
         self.use_avg = use_avg
         self.utils = UTILS()
+
+        if isfile(Temprature_meas) & Temprature_meas.endswith('.mat'):
+            temprature_mat = io.loadmat(Temprature_meas)
+            mu_temprature = temprature_mat['mu']
+            self.speedofvoice = 331.3 + 0.606 * mu_temprature
+        else:
+            self.speedofvoice = 343.21
 
     def DDOA(self, TimeToSpeaker, SpeakerLocations, alreadyTDOA=False):
         ddoa = scipy.array([])
@@ -134,26 +143,27 @@ class ChanAlgo():
 
         return self.location_list
 
-class TaylorLS():
-    def __init__(self):
-        self.wakeuptime = time()
-        self.location_list = []
-        self.speedofvoice = 343.21
-        self.dim = 3
-        self.res = 0.01  # Tracking Resolution
-
 class RoomMatrix(object):
-    def __init__(self,x,y,z,sp_list,avg_dim=5,res=0.1):
+    def __init__(self,x,y,z,sp_list,avg_dim=5,res=0.1,Temprature_meas=''):
+        '''
+        Initiate Room Matrix algorithm, define all parameters and create room quantization
+        :param x: room length - x axis
+        :param y: room length - y axis
+        :param z: room length - z axis
+        :param sp_list: list of all speakers objects
+        :param avg_dim: groups size for averaging results
+        :param res: resolution [m]  default = 0.1 [m] = 10 [cm]
+        '''
         self.xlim = x
         self.ylim = y
         self.zlim = z
         self.resolution = res
         self.speakers = {}
         self.EuclideanDistance = {}
-        self.speedofvoice = 343.21
         self.wakeup_time = time()
         self.finish_time = 0
         self.avg_dim = avg_dim
+        self.utils = UTILS()
 
         self.dimx = int(np.ceil(self.xlim/self.resolution)) + 1
         self.dimy = int(np.ceil(self.ylim/self.resolution)) + 1
@@ -170,7 +180,19 @@ class RoomMatrix(object):
         for sp in sp_list:
             self.speakers[sp.id] = [sp.x, sp.y, sp.z]
 
+        if isfile(Temprature_meas) & Temprature_meas.endswith('.mat'):
+            temprature_mat = io.loadmat(Temprature_meas)
+            mu_temprature = temprature_mat['mu']
+            self.speedofvoice = 331.3 + 0.606 * mu_temprature
+        else:
+            self.speedofvoice = 343.21
+
     def CalcDistMatrix(self):
+        '''
+        This function calculates for each speaker the distance matrix
+        from all the points in the room after quantization
+        :return: generate self.mat4corr , expected distances matrix for correlation
+        '''
         for key, value in self.speakers.items():
             tmp = np.tile(value, self.dimx * self.dimy * self.dimz)
             tmp2 = tmp.reshape(self.dimx, self.dimy, self.dimz, 3)
@@ -264,41 +286,42 @@ class RoomMatrix(object):
         z = int(index - x * (self.dimy * self.dimz) - y * self.dimz)
         return self.room_mat[x, y, z, :]
 
-    def Sp2MicToTDOA(self,sp2mic,avg_list,use_avg,time_vect):
-        rows = len(sp2mic)
-        self.measuredTDOA_vectors = OD()
-        for i in range(rows):
-            tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
-            self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
-        if use_avg:
-            self.measuredTDOA_vectors, time_vect = self.AveragingSamples(avg_list,time_vect)
-        return time_vect
-
-    def AveragingSamples(self,avg_list,time_vect):
-        from statistics import mean
-        v = [[],[],[],[]]
-        time_avg = []
-        v_avg = OD()
-        v_avg['TDOA_from_sp1'] = []
-        v_avg['TDOA_from_sp2'] = []
-        v_avg['TDOA_from_sp3'] = []
-        v_avg['TDOA_from_sp4'] = []
-
-        last = 0
-        last_ = 0
-        curr_ = 0
-        curr = 0
-        for avg in avg_list:
-            curr += avg
-            curr_ += self.avg_dim
-            for i in range(len(v)):
-                v[i] = self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)][last:curr]
-                v_avg['TDOA_from_sp' + str(i+1)].append([mean([k[j] for k in v[i]]) for j in range(len(v[i][0]))])
-            time_avg.append(mean(time_vect[last_:curr_]))
-            last = curr
-            last_ = curr_
-
-        return v_avg, time_avg
+    # def Sp2MicToTDOA(self,sp2mic,avg_list,use_avg,time_vect):
+    #     rows = len(sp2mic)
+    #     self.measuredTDOA_vectors = OD()
+    #     for i in range(rows):
+    #         tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
+    #         self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
+    #     if use_avg:
+    #         self.measuredTDOA_vectors, time_vect = self.AveragingSamples(avg_list,time_vect)
+    #         self.utils.AveragingSamples(avg_list, time_vect, self.avg_dim, self.measuredTDOA_vectors)
+    #     return time_vect
+    #
+    # def AveragingSamples(self,avg_list,time_vect):
+    #     from statistics import mean
+    #     v = [[],[],[],[]]
+    #     time_avg = []
+    #     v_avg = OD()
+    #     v_avg['TDOA_from_sp1'] = []
+    #     v_avg['TDOA_from_sp2'] = []
+    #     v_avg['TDOA_from_sp3'] = []
+    #     v_avg['TDOA_from_sp4'] = []
+    #
+    #     last = 0
+    #     last_ = 0
+    #     curr_ = 0
+    #     curr = 0
+    #     for avg in avg_list:
+    #         curr += avg
+    #         curr_ += self.avg_dim
+    #         for i in range(len(v)):
+    #             v[i] = self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)][last:curr]
+    #             v_avg['TDOA_from_sp' + str(i+1)].append([mean([k[j] for k in v[i]]) for j in range(len(v[i][0]))])
+    #         time_avg.append(mean(time_vect[last_:curr_]))
+    #         last = curr
+    #         last_ = curr_
+    #
+    #     return v_avg, time_avg
 
     def RoomMatMain(self, sp2mic, time_vect, avg_list, room_shape='square',use_avg=False):
         '''
@@ -318,10 +341,13 @@ class RoomMatrix(object):
         # Generate relevant TDOAs matrices
         self.CalcTDOMat()
         # convert measured TOA to TDOA and averaging if needed
-        time_vect = self.Sp2MicToTDOA(sp2mic,avg_list, use_avg,time_vect)
+        # time_vect = self.Sp2MicToTDOA(sp2mic,avg_list, use_avg,time_vect)
+        # convert measured TOA to TDOA
+        self.measuredTDOA_vectors = self.utils.Sp2MicToTDOA(sp2mic)
+        # averaging if needed
+        self.measuredTDOA_vectors, time_vect = self.utils.AveragingSamples(avg_list, time_vect, self.avg_dim, self.measuredTDOA_vectors)
 
         #create matrix for match filter
-
         for i in range(len(time_vect)):
             current_tdoa1 = self.measuredTDOA_vectors['TDOA_from_sp1'][i]
             current_tdoa2 = self.measuredTDOA_vectors['TDOA_from_sp2'][i]

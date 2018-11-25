@@ -1,4 +1,4 @@
-function [ sig1 ,sig2 , sig3 , sig4  ] = SpeakersWaveformBuilder( mode, msg, window, freqs_mat, t, time)
+function [ sig1 ,sig2 , sig3 , sig4  ] = SpeakersWaveformBuilder( mode, msg, window, freqs_mat, t, time, Fs, constelation_distance)
 %UNTITLED2 Summary of this function goes here
 %   Detailed explanation goes here
 switch(mode)
@@ -21,7 +21,26 @@ switch(mode)
         sig2 =  [wav2; zeros(1,max_s - length(wav2)).'];
         sig3 =  [wav3; zeros(1,max_s - length(wav3)).'];
         sig4 =  [wav4; zeros(1,max_s - length(wav4)).'];
-    
+        
+    case 4
+       ttt=0:1/Fs:0.01;
+       sig1 = chirp4sp(ttt,0,0.01,60000);
+       sig2= sig1;
+       sig3= sig1;
+       sig4= sig1;
+       allchirp_ = [sig1 sig2 sig3 sig4];
+       save('allchirps_channel_measurement.mat', 'allchirp_');
+       
+    case 5  % digital signal   
+       sig1 = digital_sig(t, freqs_mat(1,1), constelation_distance, 4, 1);
+       sig2 = digital_sig(t, freqs_mat(2,1), constelation_distance, 4, 1);
+       sig3 = digital_sig(t, freqs_mat(3,1), constelation_distance, 4, 1);
+       sig4 = digital_sig(t, freqs_mat(4,1), constelation_distance, 4, 1);
+       sig1=sig1.';
+       sig2=sig2.';
+       sig3=sig3.';
+       sig4=sig4.';
+       
     otherwise    
         switch msg
             case 'chirp'
@@ -57,22 +76,22 @@ switch(mode)
 %         sig2 = zeros(251,1);
 %         sig3 = zeros(251,1);
         sig4 = sig4 .* win;
-        allchirp = [sig1 sig2 sig3 sig4];
-        save('allchirps.mat', 'allchirp');
-
-        %plotting for debug
-        a = allchirp(:,1);
-        b = allchirp(:,2);
-        c = allchirp(:,3);
-        d = allchirp(:,4);
-        figure; hold on; plot(t,a); plot(t,b); plot(t,c); plot(t,d);
-        title('Transmitted Signals [time domain]'); legend('sp1','sp2','sp3','sp4');
-        figure; hold on; plot(xcorr(a,a));plot(xcorr(b,b));plot(xcorr(c,c));plot(xcorr(d,d));
-        title('Autocorrelation'); legend('sp1','sp2','sp3','sp4');
-        figure; hold on; plot(xcorr(a,a));plot(xcorr(a,b));plot(xcorr(a,c));plot(xcorr(a,d));
-        title('Cross-correlation'); legend('sp1 - sp1','sp1 - sp2','sp1 - sp3','sp1 - sp4');
-
 end
+
+    allchirp = [sig1 sig2 sig3 sig4];
+    save('allchirps.mat', 'allchirp');
+
+    %plotting for debug
+    a = allchirp(:,1);
+    b = allchirp(:,2);
+    c = allchirp(:,3);
+    d = allchirp(:,4);
+    figure; hold on; plot(t,a); plot(t,b); plot(t,c); plot(t,d);
+    title('Transmitted Signals [time domain]'); legend('sp1','sp2','sp3','sp4');
+    figure; hold on; plot(xcorr(a,a));plot(xcorr(b,b));plot(xcorr(c,c));plot(xcorr(d,d));
+    title('Autocorrelation'); legend('sp1','sp2','sp3','sp4');
+    figure; hold on; plot(xcorr(a,a));plot(xcorr(a,b));plot(xcorr(a,c));plot(xcorr(a,d));
+    title('Cross-correlation'); legend('sp1 - sp1','sp1 - sp2','sp1 - sp3','sp1 - sp4');
 
 
 end

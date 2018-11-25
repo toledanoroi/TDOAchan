@@ -6,6 +6,8 @@ from scipy import signal
 import statistics as stats
 from math import exp
 from matplotlib import pyplot as plt
+from numpy import concatenate
+from scipy.spatial import ConvexHull
 
 
 class UTILS(object):
@@ -295,7 +297,32 @@ class UTILS(object):
         :param data: vectors set
         :return: dicitionary of groups groups = { 'g_1' : [<sample number> ,<timestamp>, <vector>], ... }
         '''
+        from sklearn.cluster import MeanShift, estimate_bandwidth
+        # from sklearn.datasets.samples_generator import make_blobs
+        bandwidth = estimate_bandwidth(data, quantile=0.2, n_samples=500)
+
+        ms = MeanShift(bandwidth=bandwidth, bin_seeding=True)
+        ms.fit(data)
+        labels = ms.labels_
+        cluster_centers = ms.cluster_centers_
+
+        labels_unique = np.unique(labels)
+        n_clusters_ = len(labels_unique)
+
+        print("number of estimated clusters : %d" % n_clusters_)
         pass
+
+
+    def IsPntInConvexHull(self,hull, pnt):
+        '''
+        Checks if `pnt` is inside the convex hull.
+        :param `hull` -- a QHull ConvexHull object
+        :param `pnt` -- point array of shape (3,)
+        '''
+        new_hull = ConvexHull(concatenate((hull.points, [pnt])))
+        if np.array_equal(new_hull.vertices, hull.vertices):
+            return True
+        return False
 
 
 class SignalHandler(object):
@@ -394,27 +421,46 @@ class SignalHandler(object):
 
 if __name__ == '__main__':
     a = UTILS()
-    sig_d = a.CreateTTSSignal('Welcome to the ultrasonic sound localization system by Roi Toledano and Yarden Avraham.')
-    for item in sig_d.items:
-        print item
+    # sig_d = a.CreateTTSSignal('Welcome to the ultrasonic sound localization system by Roi Toledano and Yarden Avraham.')
+    # for item in sig_d.items:
+    #     print item
 
-    from src.wave2toa import Speaker
-    from src.wave2toa import recwav
-    rec = recwav()
-    rec.change_path('../inputs/blackmanharris5ms/1.WAV','in')
-    rec.PlotSignal('blackmanharris5ms.wav')
-    s = Speaker()
-    s.Define_ID(1)
-    s.BuildChirp()
-    sp_sig = {'signal': s.chirp, 'Fs': 88200, 'low_freq': 27500, 'high_freq': 30000, 'mat_signal': s.matlab_chirp}
-    rec_sig = {'signal': rec.signal, 'Fs': 88200, 'low_freq': 7500, 'high_freq': 30000, 'time': rec.rec_time}
-    b = SignalHandler()
-    c = SignalHandler()
-    b.defineParams(sp_sig)
-    c.defineParams(rec_sig)
+    points = np.random.rand(30, 3)  # 30 random points in 2-D
+    room = np.array([np.array([0, 0, 0]),
+                     np.array([0, 0, 2.4]),
+                     np.array([3.9, 0, 0]),
+                     np.array([3.9, 0, 2.4]),
+                     np.array([3.9, 4.04, 0]),
+                     np.array([3.9, 4.04, 2.4]),
+                     np.array([0.6, 4.04, 0]),
+                     np.array([0.6, 4.04, 2.4]),
+                     np.array([0.6, 1.04, 0]),
+                     np.array([0.6, 1.04, 2.4]),
+                     np.array([0, 1.04, 0]),
+                     np.array([0, 1.04, 2.4]),
+                     ])
+    hull = ConvexHull(room)
+    print "[2,2,1] is in convex ?   {0}".format(a.IsPntInConvexHull(hull,np.array([0.2,2,1])))
 
-    b.BPF(139)
-    c.BPF(139)
+    print hull.points
+
+    # from src.wave2toa import Speaker
+    # from src.wave2toa import recwav
+    # rec = recwav()
+    # rec.change_path('../inputs/blackmanharris5ms/1.WAV','in')
+    # rec.PlotSignal('blackmanharris5ms.wav')
+    # s = Speaker()
+    # s.Define_ID(1)
+    # s.BuildChirp()
+    # sp_sig = {'signal': s.chirp, 'Fs': 88200, 'low_freq': 27500, 'high_freq': 30000, 'mat_signal': s.matlab_chirp}
+    # rec_sig = {'signal': rec.signal, 'Fs': 88200, 'low_freq': 7500, 'high_freq': 30000, 'time': rec.rec_time}
+    # b = SignalHandler()
+    # c = SignalHandler()
+    # b.defineParams(sp_sig)
+    # c.defineParams(rec_sig)
+    #
+    # b.BPF(139)
+    # c.BPF(139)
 
 
     # b.SmoothSig(139, step='a')
