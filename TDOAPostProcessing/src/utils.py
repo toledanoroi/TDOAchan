@@ -439,10 +439,19 @@ if __name__ == '__main__':
                      np.array([0, 1.04, 0]),
                      np.array([0, 1.04, 2.4]),
                      ])
+    triangle = np.array([np.array([0.6, 4.04, 0]),
+                         np.array([0.6, 4.04, 2.4]),
+                         np.array([0.6, 1.04, 0]),
+                         np.array([0.6, 1.04, 2.4]),
+                         np.array([0, 1.04, 0]),
+                         np.array([0, 1.04, 2.4]),
+                         ])
     hull = ConvexHull(room)
-    print "[2,2,1] is in convex ?   {0}".format(a.IsPntInConvexHull(hull,np.array([0.2,2,1])))
+    non_hull = ConvexHull(triangle)
 
-    print hull.points
+    print "is in convex ?   {0}".format((not a.IsPntInConvexHull(non_hull,np.array([0.2,2,2]))) & a.IsPntInConvexHull(hull,np.array([0.2,2,2])))
+
+    # print hull.points
 
     # from src.wave2toa import Speaker
     # from src.wave2toa import recwav
