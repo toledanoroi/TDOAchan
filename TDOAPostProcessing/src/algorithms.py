@@ -1,3 +1,8 @@
+# project: TDOA based ultrasonic sound localization system
+# authors: Roi Toledano & Yarden Avraham
+# lab    : Bats lab
+# guide  : PhD Yossi Yovel
+
 import numpy as np
 import scipy
 from scipy import io
@@ -213,7 +218,7 @@ class RoomMatrix(object):
             tmpvector = np.transpose(tmpvector.reshape(4,len(tmp)))
             self.TDOAmats['TDOA_from_sp' + str(i+1)] = tmp - tmpvector
 
-    def CalcEucDist2mat(self,mat1, mat2):
+    def CalcEucDist2mat(self, mat1, mat2):
         differ = (abs(mat1 - mat2)) ** 2
         return np.sqrt(differ.sum(-1))
 
@@ -259,7 +264,7 @@ class RoomMatrix(object):
             legend.append(str(i))
         if plotting:
             plt.legend(legend)
-            plt.show()
+            plt.show(block=False)
 
         # find shared best point:
         if consideration == 'all':
@@ -270,7 +275,7 @@ class RoomMatrix(object):
         if plotting:
             plt.figure()
             self.plotbytapsonly(costfunction, 'Room Euclidien Distance from measurement')
-            plt.show()
+            plt.show(block=False)
 
         if mode == 'distance':
             best = np.argmin(costfunction)
@@ -345,7 +350,8 @@ class RoomMatrix(object):
         # convert measured TOA to TDOA
         self.measuredTDOA_vectors = self.utils.Sp2MicToTDOA(sp2mic)
         # averaging if needed
-        self.measuredTDOA_vectors, time_vect = self.utils.AveragingSamples(avg_list, time_vect, self.avg_dim, self.measuredTDOA_vectors)
+        if use_avg:
+            self.measuredTDOA_vectors, time_vect = self.utils.AveragingSamples(avg_list, time_vect, self.avg_dim, self.measuredTDOA_vectors)
 
         #create matrix for match filter
         for i in range(len(time_vect)):

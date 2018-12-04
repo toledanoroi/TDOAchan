@@ -13,7 +13,7 @@ pause_time = 0.2;
 freqs_mat = [20000 27000; 27000 34000; 34000 41000; 41000 49000;];
 digital_distance = 3000;
 gain = 5;  % linear gain
-mode = 5;  
+mode = 3;  
 %           Mode 0 - Welcome                                 %
 %           Mode 1 - Debug                                   %
 %           Mode 2 - One by one                              %

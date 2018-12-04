@@ -1,3 +1,10 @@
+# project: TDOA based ultrasonic sound localization system
+# authors: Roi Toledano & Yarden Avraham
+# lab    : Bats lab
+# guide  : PhD Yossi Yovel
+
+
+# just for debug !!!
 import numpy as np
 from scipy import signal
 from matplotlib import pyplot as plt

@@ -1,9 +1,13 @@
+# project: TDOA based ultrasonic sound localization system
+# authors: Roi Toledano & Yarden Avraham
+# lab    : Bats lab
+# guide  : PhD Yossi Yovel
+
+# we use matlab for it but we create all the functions needed in python.
+
 import nidaqmx as daq
 from time import sleep
 
-
-def ConnectDaq():
-    pass
 
 def TxSignal(signal , device_name, ports, round_time):
     with daq.Task() as task:

@@ -1,3 +1,8 @@
+# project: TDOA based ultrasonic sound localization system
+# authors: Roi Toledano & Yarden Avraham
+# lab    : Bats lab
+# guide  : PhD Yossi Yovel
+
 import numpy as np
 import scipy.signal
 import csv
@@ -16,10 +21,15 @@ class UTILS(object):
         self.tts_path = ''
 
     def _sgn(self, x):
-      y = np.zeros_like(x)
-      y[np.where(x >= 0)] = 1.0
-      y[np.where(x < 0)] = -1.0
-      return y
+        '''
+        returns the sign of each number in the signal
+        :param x: signal
+        :return: list of 1/-1 the describes the sign for each index in the signal
+        '''
+        y = np.zeros_like(x)
+        y[np.where(x >= 0)] = 1.0
+        y[np.where(x < 0)] = -1.0
+        return y
 
     def stzcr(self, x, win):
       """Compute short-time zero crossing rate."""
@@ -38,7 +48,13 @@ class UTILS(object):
       win = win / len(win)
       return scipy.signal.convolve(x ** 2, win ** 2, mode="same")
 
-    def CreateTDOAlistBySPx(self,sp_number,data_dict):
+    def CreateTDOAlistBySPx(self, sp_number, data_dict):
+        '''
+        calculate TDOA matrix from toa measurements , TDOA from chosen sp_number
+        :param sp_number: number of speaker to calculate TDOA from him.
+        :param data_dict: dictionary of all the toa measurements.
+        :return: TDOA_for_outliers , dictionary of TDOA array
+        '''
         TDOA_for_outliers = {"tdoa_sp_1": [data_dict['toa_sp_1'][i] - data_dict['toa_sp_' + str(sp_number)][i] for i in range(len(data_dict['toa_sp_1']))],
                              "tdoa_sp_2": [data_dict['toa_sp_2'][i] - data_dict['toa_sp_' + str(sp_number)][i] for i in range(len(data_dict['toa_sp_2']))],
                              "tdoa_sp_3": [data_dict['toa_sp_3'][i] - data_dict['toa_sp_' + str(sp_number)][i] for i in range(len(data_dict['toa_sp_3']))],
@@ -46,7 +62,12 @@ class UTILS(object):
                              }
         return TDOA_for_outliers
 
-    def Sp2MicToTDOA(self,sp2mic):
+    def Sp2MicToTDOA(self, sp2mic):
+        '''
+        calculate TDOA matrix from sp2mic toa measurements in regard of all the speakers
+        :param sp2mic: list of all the toa measurements.
+        :return:
+        '''
         from collections import OrderedDict as OD
         rows = len(sp2mic)
         measuredTDOA_vectors = OD()
@@ -55,7 +76,15 @@ class UTILS(object):
             measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
         return measuredTDOA_vectors
 
-    def AveragingSamples(self,avg_list,time_vect,avg_dim,TDOA_vect):
+    def AveragingSamples(self, avg_list, time_vect, avg_dim, TDOA_vect):
+        '''
+        calculate average of tdoa samples of all average groups (after outliers throwing process)
+        :param avg_list: list of amounts of samples in each group to average.
+        :param time_vect: samples timestamps
+        :param avg_dim: The group size before outliers throwing process
+        :param TDOA_vect: The TDOA samples
+        :return:
+        '''
         from statistics import mean
         from collections import OrderedDict as OD
         v = [[],[],[],[]]
@@ -82,45 +111,43 @@ class UTILS(object):
 
         return v_avg, time_avg
 
-
-
     def CorrSpeakerSig(self, speaker):
-        a = np.correlate(speaker.proccessed_signal.filtered_signal, speaker.matlab_chirp, 'full')
-        b = np.correlate(speaker.proccessed_signal.signal, speaker.matlab_chirp, 'full')
-        return a, b
+        '''
+        correlation between filtered signal and expected matlab generated signal
+        and correlation between unfiltered signal and expected signal
+        :param speaker: the speaker to correlate
+        :return: 2 correlation vectors
+        corr_after_filter, corr_before_filter
+        '''
+        corr_after_filter = np.correlate(speaker.proccessed_signal.filtered_signal, speaker.matlab_chirp, 'full')
+        corr_before_filter = np.correlate(speaker.proccessed_signal.signal, speaker.matlab_chirp, 'full')
+        return corr_after_filter, corr_before_filter
 
-    def CorrWith4(self, speakers):
-        corr_list = []
-        for speaker in speakers:
-            corr_list.append(np.correlate(speaker.proccessed_signal.filtered_signal, speaker.chirp, 'full'))
-        return corr_list
-
-    def FindTOA(self, corr_l, record, expected_signal_size, mode='max', thres=100):
-        toa = []
-        max_corr = []
-        if mode == 'threshold':
-            for v in corr_l:
-                print "TBD " + str(thres)
-        else:
-            for v in corr_l:
-                max_corr.append(max(v))
-                max_index = v.argmax(axis=0)
-                curr_toa = record.curr_time + (float(max_index) - expected_signal_size)/record.sample_rate
-                toa.append(curr_toa)
-
-        return toa, max_corr
-
-    def csv2dict(self,csv_path,my_dict):
+    def csv2dict(self, csv_path, my_dict={}):
+        '''
+        reads csv and generate/append to dictionary
+        :param csv_path: the csv path
+        :param my_dict: the dictionary to append ,
+        default: generation my_dict = {}
+        :return:
+        '''
 
         #add if path is valid.
-        with open(csv_path,'rb') as fin:
-            reader = csv.DictReader(fin)
-            for line in reader:
-                for key,value in line.items():
-                    my_dict[key].append(float(value))
+        if os.path.isfile(csv_path):
+            with open(csv_path,'rb') as fin:
+                reader = csv.DictReader(fin)
+                for line in reader:
+                    for key,value in line.items():
+                        my_dict[key].append(float(value))
         return my_dict
 
-    def res2csv(self,locations,path):
+    def res2csv(self, locations, path):
+        '''
+        takes results dictionary and generate csv of it.
+        :param locations: results dictionary
+        :param path: path of results csv
+        :return:
+        '''
         with open(path, 'wb') as fout:
             writer = csv.DictWriter(fout, fieldnames=["Iteration", "Time [sec]", "X [m]", "Y [m]", "Z [m]", "Error"])
             writer.writeheader()
@@ -133,6 +160,17 @@ class UTILS(object):
         return results_dict
 
     def buildSpeakersLocationMatrix(self,sp_list):
+        '''
+        generate locations matrix
+        |-------------------|
+        |  x1     y1     z1 |
+        |  x2     y2     z2 |
+        |  x3     y3     z3 |
+        |  x4     y4     z4 |
+        |-------------------|
+        :param sp_list: speakers objects list
+        :return:
+        '''
         sp_mat = np.matrix([[sp_list[0].x, sp_list[0].y, sp_list[0].z],
                             [sp_list[1].x, sp_list[1].y, sp_list[1].z],
                             [sp_list[2].x, sp_list[2].y, sp_list[2].z],
@@ -140,6 +178,14 @@ class UTILS(object):
         return sp_mat
 
     def CreateTTSSignal(self, msg, path='../inputs/welcome_msg.mp3'):
+        '''
+        generate text to speech message mp3 file, convert it to wav file and returns it as ndarray
+        :param msg: text to speech message
+        :param path: path for new mp3 file.
+        default: path='../inputs/welcome_msg.mp3'
+        :return: signal taps and parameters dictionary
+        {'signal':signal, 'time_vect':record_time_vector, 'sample_rate':Fs, 'total_time':total_time}
+        '''
         from gtts import gTTS
         if os.path.isdir(path[:path.rfind('/')]):
             self.tts_path = path
@@ -150,6 +196,10 @@ class UTILS(object):
         return sig_dict
 
     def Mp32Wav(self):
+        '''
+        converts mp3 file to wav file.
+        :return: path for new .wav file
+        '''
         from pydub import AudioSegment
         sound = AudioSegment.from_mp3(self.tts_path)
         wanted_path = self.tts_path[:-3] + 'wav'
@@ -157,6 +207,12 @@ class UTILS(object):
         self.tts_path = wanted_path
 
     def ReadWaveFromFile(self, which='tts'):
+        '''
+        read wav file and converts it to ndarray.
+        finds all parameters of the signal and returns it as dictionary
+        :param which: type of signal
+        :return: dictionary of signal parameters
+        '''
         import wave
         if which == 'tts':
             tmp_path = self.tts_path
@@ -184,10 +240,20 @@ class UTILS(object):
         plt.figure(1)
         plt.title(tmp_path)
         plt.plot(record_time_vector,signal)
-        plt.show()
+        plt.show(block=False)
         return {'signal':signal, 'time_vect':record_time_vector, 'sample_rate':Fs, 'total_time':total_time}
 
-    def CalcGaussianParams_nD(self,vectors):
+    def CalcGaussianParams_nD(self, vectors):
+        '''
+        calculate gaussian parameters from samples
+        mean , std , variance
+        :param vectors: samples vectors to calculate the gaussian parameters
+        :return: dictionary with gaussian parameters
+        {'mean': mean_list,
+                'stdev': std_list,
+                'variance': variance_list,
+                'median': mean_list }
+        '''
         mean_list = []
         std_list = []
         variance_list = []
@@ -204,18 +270,41 @@ class UTILS(object):
                 'median': mean_list
                 }
 
-    def GaussianFunc(self,sample,statistics_dict):
+    def GaussianFunc(self, sample, statistics_dict):
+        '''
+        Calculate Gaussian function value of sample
+        :param sample:
+        :param statistics_dict: gaussian parameters
+        :return: Gaussian function value
+        '''
         if len(sample) != len(statistics_dict['mean']):
             raise ValueError()
         frac = 0
         for i in range(len(sample)):
-            frac += self.ExpFrac(sample[i],statistics_dict['mean'][i],statistics_dict['variance'][i])
+            frac += self.ExpFrac(sample[i],
+                                 statistics_dict['mean'][i],
+                                 statistics_dict['variance'][i])
         return exp(-1 * frac)
 
-    def ExpFrac(self,x,mu,var):
+    def ExpFrac(self, x, mu, var):
+        '''
+        Calculate the Gaussian exponent argument for one dimension
+        :param x: the sample
+        :param mu: E[x]
+        :param var: Variance[x]
+        :return: Gaussian exponent argument
+        '''
+        if (var == 0):
+            var = 0.001
         return ((x-mu) ** 2) / (2 * var)
 
-    def Find_Outliers(self,vectors):
+    def Find_Outliers(self, vectors):
+        '''
+        search for outliers in group of vectors according to Gaussian nD model
+        :param vectors: group of samples
+        :return: Boolean list of which sample is outliers and which not.
+        True -> not outlier , False-> outlier
+        '''
         gauss_prm = self.CalcGaussianParams_nD(vectors)
         is_outlier = []
         for i in range(len(vectors[0])):
@@ -227,11 +316,9 @@ class UTILS(object):
 
         return is_outlier
 
-
     def Throw_Outliers(self,dict_r, dict_im, dim, keys=["toa_sp_1","toa_sp_2","toa_sp_3","toa_sp_4"]):
         '''
         This function cut samples to group in dim size , search for outliers and throw them from the data set.
-
         :param dict_r: TOA samples dictionary
         :param dict_im: TDOA samples dictionary
         :param dim: samples groups size
@@ -269,7 +356,22 @@ class UTILS(object):
 
         return rec_dict1 , to_average
 
-    def ScatterPlot3D(self,x_pnt,y_pnt,z_pnt,title,labels,limits):
+    def ScatterPlot3D(self, x_pnt, y_pnt, z_pnt, title, labels, limits, cvx1=None, cvx2=None, expected=None):
+        '''
+        plotting 3D scatter plot of locations in the room , plot the room edges too.
+        :param x_pnt: list of x samples
+        :param y_pnt: list of y samples
+        :param z_pnt: list of z samples
+        :param title: The plot title
+        :param labels: axis labels [<first>, <second>, <third>]
+        :param limits: the max size in the plot for each axis
+        :param cvx1: the convex hull of the room
+        default = None
+        :param cvx2: the convex hull of unallowed volume in the room
+        default = None
+        :param expected: expected location
+        default = None
+        '''
         from mpl_toolkits.mplot3d import Axes3D
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
@@ -287,8 +389,120 @@ class UTILS(object):
         Axes3D.set_xlim(ax, right=limits[0][1], left=limits[0][0])
         Axes3D.set_ylim(ax, bottom=limits[1][0], top=limits[1][1])
         Axes3D.set_zlim(ax, bottom=limits[2][0], top=limits[2][1])
+        if cvx1 is not None:
+            pts = cvx1.points
+            ax.plot(pts.T[0], pts.T[1], pts.T[2], "ko")
+            for s in cvx1.simplices:
+                s = np.append(s, s[0])  # Here we cycle back to the first coordinate
+                ax.plot(pts[s, 0], pts[s, 1], pts[s, 2], "r-")
+
+        if cvx2 is not None:
+            pts2 = cvx2.points
+            ax.plot(pts2.T[0], pts2.T[1], pts2.T[2], "mo")
+            for s in cvx2.simplices:
+                s = np.append(s, s[0])  # Here we cycle back to the first coordinate
+                ax.plot(pts2[s, 0], pts2[s, 1], pts2[s, 2], "m-")
+
+        if expected is not None:
+            for pnt in expected:
+                ax.scatter(pnt[0], pnt[1], pnt[2], c='g', marker='*')
+
+        plt.show(block=False)
+
+    def PlotCvxHull(self, hull, cvx2=None):
+        '''
+        Plot convex hull --> for debug
+        :param hull: the convex hull of the room
+        :param cvx2: the convex hull of unallowed volume in the room
+        default = None
+        '''
+        from mpl_toolkits.mplot3d import Axes3D
+        from scipy.spatial import ConvexHull
+
+        # 8 points defining the cube corners
+        pts = hull.points
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection="3d")
+
+        # Plot defining corner points
+        ax.plot(pts.T[0], pts.T[1], pts.T[2], "ko")
+
+        # 12 = 2 * 6 faces are the simplices (2 simplices per square face)
+        for s in hull.simplices:
+            s = np.append(s, s[0])  # Here we cycle back to the first coordinate
+            ax.plot(pts[s, 0], pts[s, 1], pts[s, 2], "r-")
+
+        if cvx2 is not None:
+            pts2 = cvx2.points
+            ax.plot(pts2.T[0], pts2.T[1], pts2.T[2], "mo")
+            for s_ in cvx2.simplices:
+                s_ = np.append(s_, s_[0])  # Here we cycle back to the first coordinate
+                ax.plot(pts2[s_, 0], pts2[s_, 1], pts2[s_, 2], "m-")
+        # # Make axis label
+        # for i in ["x", "y", "z"]:
+        #     ["myconvexhull"][1]
+        #     eval("ax.set_{:s}label('{:s}')".format(i, i))
+
+        plt.show(block=False)
+
+    def ScatterPlot2D(self, x_pnt, y_pnt, title, labels, limits, cvx1=None, cvx2=None, expected=None):
+        '''
+        plotting 2D scatter plot of locations in the room , plot the room edges too.
+        :param x_pnt: list of x samples
+        :param y_pnt: list of y samples
+        :param title: The plot title
+        :param labels: axis labels [<first>, <second>, <third>]
+        :param limits: the max size in the plot for each axis
+        :param cvx1: the convex hull of the room
+        default = None
+        :param cvx2: the convex hull of unallowed volume in the room
+        default = None
+        :param expected: expected location
+        default = None
+        '''
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        for i in range(len(x_pnt)):
+            ax.scatter(x_pnt[i], y_pnt[i], c='b', marker='o')
+
+        ax.set_xlabel(labels[0])
+        ax.set_ylabel(labels[1])
+        ax.set_title(title)
+        ax.set_xlim(right=limits[0][1], left=limits[0][0])
+        ax.set_ylim(bottom=limits[1][0], top=limits[1][1])
+
+        if cvx1 is not None:
+            pts = cvx1.points
+            ax.plot(pts.T[0], pts.T[1], "ko")
+            for s in cvx1.simplices:
+                s = np.append(s, s[0])
+                ax.plot(pts[s, 0], pts[s, 1], "r-")
+
+        if cvx2 is not None:
+            pts2 = cvx2.points
+            ax.plot(pts2.T[0], pts2.T[1], "mo")
+            for s in cvx2.simplices:
+                s = np.append(s, s[0])  # Here we cycle back to the first coordinate
+                ax.plot(pts2[s, 0], pts2[s, 1], "m-")
+
+        if expected is not None:
+            for pnt in expected:
+                ax.scatter(pnt[0], pnt[1], c='g', marker='*')
 
         plt.show()
+
+    def CalcErrorFromExpected(self, pnt, expected):
+        '''
+        Calculate the euclidean distance between 2 ndim points
+        :param pnt: the tested point
+        :param expected: the expected results point (real location 3D/2D)
+        :return: distance
+        :type float64
+        '''
+        _pnt = np.array(pnt)
+        _expected = np.array(expected)
+        differ = (abs(_pnt - _expected)) ** 2
+        return np.sqrt(differ.sum(-1))
 
     def ClusteringnD(self,dim,data,time_vect):
         '''
@@ -312,6 +526,41 @@ class UTILS(object):
         print("number of estimated clusters : %d" % n_clusters_)
         pass
 
+    def DefineRoom(self, room_list, not_edge_dots, shapewithnonedgepoint=True, plotting=False):
+        '''
+        generate convex hulls of the room from points 3D and 2D
+        :param room_list: 3D arrays array of all edges in the room
+        :param not_edge_dots: 3D arrays array of all the not allowed volume in the room
+        :param shapewithnonedgepoint: boolean , defines if there are not allowed volumes in the room
+        :param plotting: boolean, defines if we want to plot the convex hull or not.
+        :return:
+        '''
+        from numpy import array
+        from scipy.spatial import ConvexHull
+        room3D = array(room_list)
+        list_2d = [array([pnt[0], pnt[1]]) for pnt in room_list]
+        room2D = array(list_2d)
+        if not shapewithnonedgepoint:
+
+            triangle3D = array(not_edge_dots)
+            list_2d_non = [array([pnt[0], pnt[1]]) for pnt in not_edge_dots]
+            triangle2D = array(list_2d_non)
+
+            non_hull = ConvexHull(triangle3D)
+            non_hull2d = ConvexHull(triangle2D)
+
+            hull = ConvexHull(room3D)
+            hull2d = ConvexHull(room2D)
+
+            if plotting:
+             self.PlotCvxHull(hull,  non_hull)
+
+            return hull, non_hull, hull2d, non_hull2d
+
+        hull = ConvexHull(room3D)
+        hull2d = ConvexHull(room2D)
+
+        return hull, None, hull2d, None
 
     def IsPntInConvexHull(self,hull, pnt):
         '''
@@ -329,7 +578,11 @@ class SignalHandler(object):
     def __init__(self):
         pass
 
-    def defineParams(self,my_signal):
+    def defineParams(self, my_signal):
+        '''
+        define all SignalHandler object parameters
+        :param my_signal: signal parameters
+        '''
         self.signal = my_signal['signal']
         self.Fs = my_signal['Fs']
         self.BW = [my_signal['low_freq'], my_signal['high_freq'], abs(my_signal['high_freq'] - my_signal['low_freq'])]
@@ -359,14 +612,12 @@ class SignalHandler(object):
         self.filtered_signal = signal.convolve(self.signal, self.h1)
         self.record_time_with_filter_delay = np.linspace(0, float(len(self.filtered_signal)) / self.Fs, num=len(self.filtered_signal))
 
-
-
     def SmoothSig(self,filterOrder,step='a'):
         '''
         smoothing the noise
+        we don't use it in the code, maybe needed
         :param filterOrder:
         :param step:
-        :return:
         '''
         if step == 'a':
             b, a = signal.butter(filterOrder, 0.05)
@@ -375,9 +626,13 @@ class SignalHandler(object):
             b, a = signal.butter(filterOrder, 0.05)
             self.new_signal = signal.filtfilt(b, a, self.filtered_signal)
 
-
-
     def mfreqz(self, b,a=1):
+        '''
+        plotting freqz of filter , like matlab representation.
+        :param b: nominator
+        :param a: denominator
+        default: a = 1
+        '''
         from matplotlib import pyplot as plt
         from pylab import unwrap, arctan2, imag, real, log10
 
@@ -398,9 +653,14 @@ class SignalHandler(object):
         plt.xlabel(r'Normalized Frequency (x$\pi$rad/sample)')
         plt.title(r'Phase response')
         plt.subplots_adjust(hspace=0.5)
-        plt.show()
+        plt.show(block=False)
 
     def Plotsignaldiff(self,mode='f'):
+        '''
+        plot the signal to show the difference between operation
+        :param mode: {'f' : only filtered_signal , 's': only smoothed_signal, 'a': all signals}
+        :return:
+        '''
         old = self.signal
 
         if mode == 'f':
@@ -415,44 +675,90 @@ class SignalHandler(object):
         from matplotlib import pyplot as plt
 
         fig = plt.figure()
-        plt.plot(self.record_time,old,)
+        plt.plot(self.record_time, old)
+        if mode == 'a':
+            plt.plot(self.record_time, new1[:len(old)])
+            plt.plot(self.record_time, new2[:len(old)])
+            plt.plot(self.record_time, new3[:len(old)])
+        else:
+            plt.plot(self.record_time, new[:len(old)])
+        plt.show()
 
 
-
+# only for debug
+# ---------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------------
+# ---------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     a = UTILS()
     # sig_d = a.CreateTTSSignal('Welcome to the ultrasonic sound localization system by Roi Toledano and Yarden Avraham.')
     # for item in sig_d.items:
     #     print item
 
-    points = np.random.rand(30, 3)  # 30 random points in 2-D
-    room = np.array([np.array([0, 0, 0]),
-                     np.array([0, 0, 2.4]),
-                     np.array([3.9, 0, 0]),
-                     np.array([3.9, 0, 2.4]),
-                     np.array([3.9, 4.04, 0]),
-                     np.array([3.9, 4.04, 2.4]),
-                     np.array([0.6, 4.04, 0]),
-                     np.array([0.6, 4.04, 2.4]),
-                     np.array([0.6, 1.04, 0]),
-                     np.array([0.6, 1.04, 2.4]),
-                     np.array([0, 1.04, 0]),
-                     np.array([0, 1.04, 2.4]),
-                     ])
-    triangle = np.array([np.array([0.6, 4.04, 0]),
-                         np.array([0.6, 4.04, 2.4]),
-                         np.array([0.6, 1.04, 0]),
-                         np.array([0.6, 1.04, 2.4]),
-                         np.array([0, 1.04, 0]),
-                         np.array([0, 1.04, 2.4]),
-                         ])
-    hull = ConvexHull(room)
-    non_hull = ConvexHull(triangle)
 
-    print "is in convex ?   {0}".format((not a.IsPntInConvexHull(non_hull,np.array([0.2,2,2]))) & a.IsPntInConvexHull(hull,np.array([0.2,2,2])))
+    room3D = np.array([np.array([0, 0, 0]),
+                       np.array([0, 0, 2.4]),
+                       np.array([3.9, 0, 0]),
+                       np.array([3.9, 0, 2.4]),
+                       np.array([3.9, 4.04, 0]),
+                       np.array([3.9, 4.04, 2.4]),
+                       np.array([0.6, 4.04, 0]),
+                       np.array([0.6, 4.04, 2.4]),
+                       np.array([0.6, 1.04, 0]),
+                       np.array([0.6, 1.04, 2.4]),
+                       np.array([0, 1.04, 0]),
+                       np.array([0, 1.04, 2.4]),
+                       ])
+    triangle3D = np.array([np.array([0.6, 4.04, 0]),
+                           np.array([0.6, 4.04, 2.4]),
+                           np.array([0.6, 1.04, 0]),
+                           np.array([0.6, 1.04, 2.4]),
+                           np.array([0, 1.04, 0]),
+                           np.array([0, 1.04, 2.4]),
+                           ])
+
+
+    room2D = np.array([np.array([0, 0]),
+                       np.array([3.9, 0]),
+                       np.array([3.9, 4.04]),
+                       np.array([0.6, 4.04]),
+                       np.array([0.6, 1.04]),
+                       np.array([0, 1.04])
+                       ])
+    triangle2D = np.array([np.array([0.6, 4.04]),
+                           np.array([0.6, 1.04]),
+                           np.array([0, 1.04])
+                           ])
+
+
+    hull2d = ConvexHull(room2D)
+    non_hull2d = ConvexHull(triangle2D)
+    hull = ConvexHull(room3D)
+    non_hull = ConvexHull(triangle3D)
+
+
+    # print "is in convex ?   {0}".format((not a.IsPntInConvexHull(non_hull,np.array([3.9,0,2.4]))) & a.IsPntInConvexHull(hull,np.array([0.2,2,2])))
+    x_pnts = [1, 1.5, 2]
+    y_pnts = [1, 1, 1]
+    expected = [np.array([1.5, 1])]
+
+    # a.PlotCvxHull(hull, cvx2=non_hull)
+    a.ScatterPlot2D(x_pnts,
+                    y_pnts,
+                    "test",
+                    ["x[m]", "y[m]"],
+                    [(0,3.9),(0,4.07)],
+                    cvx1=hull2d,
+                    cvx2=non_hull2d,
+                    expected=expected)
+    err = []
+    for i in range(len(x_pnts)):
+        err.append(a.CalcErrorFromExpected([x_pnts[i], y_pnts[i]],expected))
+
+
+    print "max error = {0}\nmin error = {1}\naverage error = {2}".format(max(err),min(err),np.average(err))
 
     # print hull.points
-
     # from src.wave2toa import Speaker
     # from src.wave2toa import recwav
     # rec = recwav()
@@ -470,11 +776,28 @@ if __name__ == '__main__':
     #
     # b.BPF(139)
     # c.BPF(139)
-
-
     # b.SmoothSig(139, step='a')
     # b.SmoothSig(139, step='b')
     # c.SmoothSig(139, step='a')
     # c.SmoothSig(139, step='b')
+    # def CorrWith4(self, speakers):
+    #     corr_list = []
+    #     for speaker in speakers:
+    #         corr_list.append(np.correlate(speaker.proccessed_signal.filtered_signal, speaker.chirp, 'full'))
+    #     return corr_list
+    # def FindTOA(self, corr_l, record, expected_signal_size, mode='max', thres=100):
+    #     toa = []
+    #     max_corr = []
+    #     if mode == 'threshold':
+    #         for v in corr_l:
+    #             print "TBD " + str(thres)
+    #     else:
+    #         for v in corr_l:
+    #             max_corr.append(max(v))
+    #             max_index = v.argmax(axis=0)
+    #             curr_toa = record.curr_time + (float(max_index) - expected_signal_size)/record.sample_rate
+    #             toa.append(curr_toa)
+    #
+    #     return toa, max_corr
 
     print "Finish All"
