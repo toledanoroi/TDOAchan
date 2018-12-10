@@ -98,6 +98,8 @@ def RunToaList(fin, params):
             a, b = RxMain(params)
             err2d[path].append(a)
             err3d[path].append(b)
+    from matplotlib.pyplot import show
+    show()
     return err2d, err3d
 
 def PlotErrorCurves(err2d, err3d, resolutions):
@@ -252,7 +254,7 @@ if __name__ == '__main__':
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     res_iteration = False
-    mode = 4
+    mode = 3
     params = {}
     algorithm_d = {'chan': 1,
                    'taylor': 2,
@@ -270,13 +272,14 @@ if __name__ == '__main__':
       '3': [34000, 41000],
       '4': [42000, 49000]}
     '''
-    params['speakers_locations_d'] = {'1': [0.07, 0.07, 2.30],
-                                      '2': [3.92, 0.07, 2.23],
-                                      '3': [0.75, 3.82, 2.15],
-                                      '4': [3.92, 4.01, 1.49]}
-    params['room_sizes'] = {'x': 3.99,
-                            'y': 4.08,
-                            'z': 2.48}
+    params['speakers_locations_d'] = {'1': [0.0564, 0.0712, 2.3172],
+                                      '2': [0.377, 3.73, 1.5539],
+                                      '3': [3.77, 0.7454, 2.2249],
+                                      '4': [3.9559, 3.8892, 1.5578]}
+    params['room_sizes'] = {'x': 4.057,
+                            'y': 3.928,
+                            'z': 2.464}
+    params['constant_z'] = 0.994
     params['only_toa'] = False
 
     params['chirp_time'] = 0.005
@@ -285,8 +288,8 @@ if __name__ == '__main__':
     params['record_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/goodsig_254_267_089.WAV'
     params['signal_mode'] = 1
     frecords = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/records.csv'
-    ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs.csv'
-    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/New_Inputs'
+    ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs_.csv'
+    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/records_test'
 
     params['algorithm'] = algorithm_d['room']
     params['resolution'] = 0.05  # [m]
@@ -297,24 +300,24 @@ if __name__ == '__main__':
 
     # room shape convex hull parameters
     params['room3D'] = np.array([np.array([0, 0, 0]),
-                                 np.array([0, 0, 2.48]),
-                                 np.array([3.99, 0, 0]),
-                                 np.array([3.99, 0, 2.48]),
-                                 np.array([3.99, 4.04, 0]),
-                                 np.array([3.99, 4.08, 2.48]),
-                                 np.array([0.68, 4.08, 0]),
-                                 np.array([0.68, 4.08, 2.48]),
-                                 np.array([0.68, 1.82, 0]),
-                                 np.array([0.68, 1.82, 2.48]),
+                                 np.array([0, 0, params['room_sizes']['z']]),
+                                 np.array([params['room_sizes']['x'], 0, 0]),
+                                 np.array([params['room_sizes']['x'], 0, params['room_sizes']['z']]),
+                                 np.array([params['room_sizes']['x'], params['room_sizes']['y'], 0]),
+                                 np.array([params['room_sizes']['x'], params['room_sizes']['y'], params['room_sizes']['z']]),
+                                 np.array([0.676, params['room_sizes']['y'], 0]),
+                                 np.array([0.676, params['room_sizes']['y'], params['room_sizes']['z']]),
+                                 np.array([0.676, 1.82, 0]),
+                                 np.array([0.676, 1.82, params['room_sizes']['z']]),
                                  np.array([0, 1.82, 0]),
-                                 np.array([0, 1.82, 2.48]),
+                                 np.array([0, 1.82, params['room_sizes']['z']]),
                                  ])
-    params['triangle3D'] = np.array([np.array([0.68, 4.08, 0]),
-                                     np.array([0.68, 4.08, 2.48]),
-                                     np.array([0.68, 1.82, 0]),
-                                     np.array([0.68, 1.82, 2.48]),
+    params['triangle3D'] = np.array([np.array([0.676, params['room_sizes']['y'], 0]),
+                                     np.array([0.676, params['room_sizes']['y'], params['room_sizes']['z']]),
+                                     np.array([0.676, 1.82, 0]),
+                                     np.array([0.676, 1.82, params['room_sizes']['z']]),
                                      np.array([0, 1.82, 0]),
-                                     np.array([0, 1.82, 2.48]),
+                                     np.array([0, 1.82, params['room_sizes']['z']])
                                      ])
     params['room2D'] = []
     params['triangle2D'] = []
@@ -331,7 +334,7 @@ if __name__ == '__main__':
 
     err2d = {}
     err3d = {}
-    delt = np.linspace(0.01, 0.2, 20)
+    delt = np.linspace(0.05, 0.2, 1)
 
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
@@ -350,7 +353,7 @@ if __name__ == '__main__':
             a, b = RxMain(params)
     elif mode == 1:
         # only generate TOAs
-        ToaGenerator(frecbase, params, prefix='5mili')
+        ToaGenerator(frecbase, params, prefix='a')
     elif mode == 2:
         #  run multiple records (WAV file) full - wave parsing and algorithm
         _2Derr, _3Derr = RunMultipleRecords(frecords, params)

@@ -20,7 +20,7 @@ from utils import UTILS
 from utils import SignalHandler
 from collections import OrderedDict as OD
 
-plotting = True
+plotting = False
 
 def resampling(speaker,rec_Fs):
     factor = int((rec_Fs/250000.0)*len(speaker.matlab_chirp))
@@ -326,7 +326,7 @@ def RxMain(params):
     hull, non_hull, hull2d, non_hull2d= utils_obj.DefineRoom(params['room3D'],
                                                              params['triangle3D'],
                                                              shapewithnonedgepoint=False,
-                                                             plotting=True
+                                                             plotting=False
                                                              )
     if not (os.path.isfile(params['TOA_path']) & params['TOA_path'].endswith('.csv')):
         record.change_path(os.path.abspath(params['record_path']), 'in')
@@ -376,7 +376,7 @@ def RxMain(params):
                 height=45000,           #int(0.5 * (max(sp_list[i].correl1))),
                 distance=400
             )
-
+        # align corr peaks lists to the same size
         tmp = min([len(sp.corr_peaks) for sp in sp_list])
         for sp in sp_list:
             if len(sp.corr_peaks) > tmp:
@@ -423,6 +423,7 @@ def RxMain(params):
             for sp in sp_list:
                 count += 1
                 plt.subplot(2, 2, count)
+                plt.title(str(sp.id) + " signal vs filtered signal")
                 plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
                 plt.plot(sp.unfiltered_signal['time_vect'],
                          sp.proccessed_signal.filtered_signal[:len(sp.unfiltered_signal['signal'])])
@@ -467,20 +468,20 @@ def RxMain(params):
                              sp.proccessed_signal.filtered_signal)
                     plt.plot(corr_time_vect, sp.correl1)
                     plt.grid()
-                    for i in range(len(sp.peaks)):
-                        print ("*" * 50 + "\n") * 3
-                        # print "real_peak = {0}".format(peaks[i])
-                        print "real_peak_filtered = {0}".format(sp.peaks[i])
-                        print "corr peak = {0}".format(sp.corr_peaks[i])
-                        print "corr_peak - real_peak_filtered = {0}".format(sp.corr_peaks[i] - sp.peaks[i])
-                        print ("*" * 50 + "\n") * 3
+                    # for i in range(len(sp.peaks)):
+                    #     print ("*" * 50 + "\n") * 3
+                    #     # print "real_peak = {0}".format(peaks[i])
+                    #     print "real_peak_filtered = {0}".format(sp.peaks[i])
+                    #     print "corr peak = {0}".format(sp.corr_peaks[i])
+                    #     print "corr_peak - real_peak_filtered = {0}".format(sp.corr_peaks[i] - sp.peaks[i])
+                    #     print ("*" * 50 + "\n") * 3
                 plt.show(block=False)
 
-                plt.figure()
-                for sp in sp_list:
-                    plt.plot(corr_time_vect, sp.correl1)
-                plt.legend(["sp1", "sp2", "sp3", "sp4"])
-                plt.show(block=False)
+            plt.figure()
+            for sp in sp_list:
+                plt.plot(corr_time_vect, sp.correl1)
+            plt.legend(["sp1", "sp2", "sp3", "sp4"])
+            plt.show(block=False)
                 #plt.figure()
                 # for sp in sp_list:
                 #     plt.plot(sp.correl1)
@@ -557,9 +558,14 @@ def RxMain(params):
                                    params['room_sizes']['z'],
                                    sp_list,
                                    res=params['resolution'],
-                                   avg_dim=params['avg_group_size'])
-        location_list = LUT_obj.RoomMatMain(sp2mic, timestamps, avg_list,
-                                            room_shape='square', use_avg=params['use_averaging_before_calculation'])
+                                   avg_dim=params['avg_group_size'],
+                                   constant_z=params['constant_z']
+                                   )
+        location_list = LUT_obj.RoomMatMain(sp2mic,
+                                            timestamps,
+                                            avg_list,
+                                            room_shape='square',
+                                            use_avg=params['use_averaging_before_calculation'])
     elif params['algorithm'] == 4:
         chan = algos.ChanAlgo()
         LUT_obj = algos.RoomMatrix()

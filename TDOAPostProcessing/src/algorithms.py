@@ -149,7 +149,7 @@ class ChanAlgo():
         return self.location_list
 
 class RoomMatrix(object):
-    def __init__(self,x,y,z,sp_list,avg_dim=5,res=0.1,Temprature_meas=''):
+    def __init__(self,x,y,z,sp_list,avg_dim=5,res=0.1,Temprature_meas='',constant_z=-1):
         '''
         Initiate Room Matrix algorithm, define all parameters and create room quantization
         :param x: room length - x axis
@@ -161,7 +161,7 @@ class RoomMatrix(object):
         '''
         self.xlim = x
         self.ylim = y
-        self.zlim = z
+
         self.resolution = res
         self.speakers = {}
         self.EuclideanDistance = {}
@@ -172,11 +172,18 @@ class RoomMatrix(object):
 
         self.dimx = int(np.ceil(self.xlim/self.resolution)) + 1
         self.dimy = int(np.ceil(self.ylim/self.resolution)) + 1
-        self.dimz = int(np.ceil(self.zlim/self.resolution)) + 1
+        if constant_z == -1:
+            self.zlim = z
+            self.dimz = int(np.ceil(self.zlim/self.resolution)) + 1
+            z_t = np.linspace(0, self.zlim, self.dimz)
+        else:
+            self.zlim = constant_z
+            self.dimz = 1
+            z_t = np.array([constant_z])
         # define the room matrix
         x_t = np.linspace(0, self.xlim, self.dimx)
         y_t = np.linspace(0, self.ylim, self.dimy)
-        z_t = np.linspace(0, self.zlim, self.dimz)
+
         # define room Quantization
         perm = np.array(list(itertools.product(x_t, y_t, z_t)))
         self.room_mat = perm.reshape(self.dimx, self.dimy, self.dimz, 3)
@@ -209,6 +216,8 @@ class RoomMatrix(object):
                                          self.EuclideanDistance['sp2'].reshape(self.dimx * self.dimy * self.dimz, 1),
                                          self.EuclideanDistance['sp3'].reshape(self.dimx * self.dimy * self.dimz, 1),
                                          self.EuclideanDistance['sp4'].reshape(self.dimx * self.dimy * self.dimz, 1)))
+
+
 
     def CalcTDOMat(self):
         self.TDOAmats = OD()
@@ -246,7 +255,7 @@ class RoomMatrix(object):
         plt.title(title)
         plt.grid()
 
-    def WeightBestMatch(self, tdoa_list, mode='distance',consideration='all'):
+    def WeightBestMatch(self, tdoa_list, mode='distance', consideration='all'):
         dist = []
         legend = []
         if plotting:
@@ -291,6 +300,9 @@ class RoomMatrix(object):
         z = int(index - x * (self.dimy * self.dimz) - y * self.dimz)
         return self.room_mat[x, y, z, :]
 
+
+
+
     # def Sp2MicToTDOA(self,sp2mic,avg_list,use_avg,time_vect):
     #     rows = len(sp2mic)
     #     self.measuredTDOA_vectors = OD()
@@ -328,7 +340,7 @@ class RoomMatrix(object):
     #
     #     return v_avg, time_avg
 
-    def RoomMatMain(self, sp2mic, time_vect, avg_list, room_shape='square',use_avg=False):
+    def RoomMatMain(self, sp2mic, time_vect, avg_list, room_shape='square',use_avg=False, constant_z=-1):
         '''
         :param sp2mic: TOA samples from each speaker to the microphone
         :param time_vect:
@@ -340,13 +352,11 @@ class RoomMatrix(object):
 
         cols = len(sp2mic[0])
         locations_list = []
-
+        # if constant_z == -1:
         # calculate the Euclidean matrix. (LUT)
         self.CalcDistMatrix()
         # Generate relevant TDOAs matrices
         self.CalcTDOMat()
-        # convert measured TOA to TDOA and averaging if needed
-        # time_vect = self.Sp2MicToTDOA(sp2mic,avg_list, use_avg,time_vect)
         # convert measured TOA to TDOA
         self.measuredTDOA_vectors = self.utils.Sp2MicToTDOA(sp2mic)
         # averaging if needed
@@ -364,7 +374,25 @@ class RoomMatrix(object):
             # if considered only one tdoa calculation
             mic_location, location_error = self.WeightBestMatch([current_tdoa1,current_tdoa2,current_tdoa3,current_tdoa4])#, consideration='1')
             locations_list.append([time_vect[i], mic_location, location_error])
-
+        # else:
+        #     self.Calc2DDistMatrix(constant_z)
+        #     self.Calc2DTDOAMat()
+        #     self.measuredTDOA_vectors = self.utils.Sp2MicToTDOA(sp2mic)
+        #     if use_avg:
+        #         self.measuredTDOA_vectors, time_vect = self.utils.AveragingSamples(avg_list, time_vect, self.avg_dim, self.measuredTDOA_vectors)
+        #
+        #         # create matrix for match filter
+        #         for i in range(len(time_vect)):
+        #             current_tdoa1 = self.measuredTDOA_vectors['TDOA_from_sp1'][i]
+        #             current_tdoa2 = self.measuredTDOA_vectors['TDOA_from_sp2'][i]
+        #             current_tdoa3 = self.measuredTDOA_vectors['TDOA_from_sp3'][i]
+        #             current_tdoa4 = self.measuredTDOA_vectors['TDOA_from_sp4'][i]
+        #
+        #             # find best match in LUT
+        #             # if considered only one tdoa calculation
+        #             mic_location, location_error = self.WeightBestMatch(
+        #                 [current_tdoa1, current_tdoa2, current_tdoa3, current_tdoa4])  # , consideration='1')
+        #             locations_list.append([time_vect[i], mic_location, location_error])
 
         self.finish_time = time()
         print "algorithm time : {}".format(self.finish_time - self.wakeup_time)
