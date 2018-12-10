@@ -198,7 +198,7 @@ class Speaker(object):
 
         return sig1
 
-    def Define_ID(self,my_id, freqs_dict, Fs, ch_time, matlab_path, signal_mode):
+    def Define_ID(self, my_id, freqs_dict, Fs, ch_time, matlab_path, signal_mode):
         '''
         define all params , generate signals for correlation, load matlab TX signals ,
         filters record following to chirp parameters
@@ -316,9 +316,18 @@ def RxMain(params):
             ---------------------------------------------------------------------------------------------
     :return: average errors of the algorithm
     '''
+    # validity check
+    if ((params['number_of_speakers'] != len(params['speakers_frequencies'])) |
+            (params['number_of_speakers'] != len(params['speakers_locations_d']))):
+        print colored("Wrong Input Error \n\tnumber_of_speakers = {0}"
+                      "\n\tlen(speakers_frequencies) = {1}"
+                      "\n\tlen(speakers_locations_d) = {2}".format(params['number_of_speakers'],
+                                                                   len(params['speakers_frequencies']),
+                                                                   len(params['speakers_locations_d'])), "red")
+    sp_list = []
+    for j in xrange(params['number_of_speakers']):
+        sp_list.append(Speaker())
 
-
-    sp_list = [Speaker(), Speaker(), Speaker(), Speaker()]
     utils_obj = UTILS()
     record = recwav()
 
@@ -363,13 +372,13 @@ def RxMain(params):
             sp_list[i].peaks, sp_list[i].peaks_height = signal.find_peaks(
                 sp_list[i].proccessed_signal.filtered_signal,
                 # height=int(0.4 * (max(sp_list[i].proccessed_signal.filtered_signal))),
-                distance=int(0.9 *sp_list[i].proccessed_signal.Fs/2)
+                distance=int(0.9 * sp_list[i].proccessed_signal.Fs / 2)
             )
             sp_list[i].correl1, sp_list[i].correl2 = utils_obj.CorrSpeakerSig(sp_list[i])
             sp_list[i].corr_peaks, sp_list[i].corr_peaks_height = signal.find_peaks(
                 sp_list[i].correl1,
                 # height=int(0.4 * (max(sp_list[i].correl1))),
-                distance=int(0.9 *sp_list[i].proccessed_signal.Fs/2)    #approximatly 0.45 seconds
+                distance=int(0.9 * sp_list[i].proccessed_signal.Fs / 2)    #approximatly 0.45 seconds
             )
             sp_list[i].corr_peaks_test, sp_list[i].corr_peaks_height_test = signal.find_peaks(
                 sp_list[i].correl1,
@@ -430,9 +439,9 @@ def RxMain(params):
                 plt.grid()
             plt.show(block=False)
 
-
+        toa_texts = ["toa_sp_" + str(sp.id) for sp in sp_list]
         with open(record.toa_csv_path, 'wb') as fout:
-            writer = csv.DictWriter(fout, fieldnames=["toa_sp_1", "toa_sp_2", "toa_sp_3", "toa_sp_4"])
+            writer = csv.DictWriter(fout, fieldnames=toa_texts)
             writer.writeheader()
             iterr = 1
             peaks, _ = signal.find_peaks(record.signal, height=int(0.7 * (max(record.signal))), distance=10000)
@@ -477,11 +486,11 @@ def RxMain(params):
                     #     print ("*" * 50 + "\n") * 3
                 plt.show(block=False)
 
-            plt.figure()
-            for sp in sp_list:
-                plt.plot(corr_time_vect, sp.correl1)
-            plt.legend(["sp1", "sp2", "sp3", "sp4"])
-            plt.show(block=False)
+                plt.figure()
+                for sp in sp_list:
+                    plt.plot(corr_time_vect, sp.correl1)
+                # plt.legend(["sp1", "sp2", "sp3", "sp4"])
+                plt.show(block=False)
                 #plt.figure()
                 # for sp in sp_list:
                 #     plt.plot(sp.correl1)
@@ -491,22 +500,15 @@ def RxMain(params):
                 # plt.show(block=False)
 
             for i in range(len(sp_list[0].peaks_time_stamps)):
-                writer.writerow({"toa_sp_1": sp_list[0].peaks_time_stamps[i],
-                                 "toa_sp_2": sp_list[1].peaks_time_stamps[i],
-                                 "toa_sp_3": sp_list[2].peaks_time_stamps[i],
-                                 "toa_sp_4": sp_list[3].peaks_time_stamps[i]})
-
-        rec_dict = utils_obj.csv2dict(record.toa_csv_path, my_dict={"toa_sp_1": [],
-                                                            "toa_sp_2": [],
-                                                            "toa_sp_3": [],
-                                                            "toa_sp_4": []})
+                dicto = {"toa_sp_" + str(sp.id): sp.peaks_time_stamps[i] for sp in sp_list}
+                writer.writerow(dicto)
+        dicto1 = {"toa_sp_" + str(sp.id): [] for sp in sp_list}
+        rec_dict = utils_obj.csv2dict(record.toa_csv_path, my_dict=dicto1)
     else:
+        dicto1 = {"toa_sp_" + str(sp.id): [] for sp in sp_list}
         record.toa_csv_path = params['TOA_path']
-        rec_dict = utils_obj.csv2dict(record.toa_csv_path, my_dict={"toa_sp_1": [],
-                                                                    "toa_sp_2": [],
-                                                                    "toa_sp_3": [],
-                                                                    "toa_sp_4": []})
-        record.total_time = int((rec_dict['toa_sp_1'][-1] + rec_dict['toa_sp_2'][-1] + rec_dict['toa_sp_3'][-1] + rec_dict['toa_sp_4'][-1])/4)
+        rec_dict = utils_obj.csv2dict(record.toa_csv_path, my_dict=dicto1)
+        record.total_time = int(np.average([rec_dict['toa_sp_' + str(sp.id)][-1] for sp in sp_list]))
         timestamps = [sum([rec_dict["toa_sp_" + str(i + 1)][j] / len(rec_dict) - (5 * 10 ** (-3))
                            for i in range(len(rec_dict))])
                       for j in range(len(rec_dict["toa_sp_1"]))]
@@ -530,17 +532,19 @@ def RxMain(params):
         print colored("throw outliers according to 3D Gaussian model", "blue")
         TDOA_for_outliers = utils_obj.CreateTDOAlistBySPx(1, rec_dict)
         if plotting:
-            utils_obj.ScatterPlot3D(TDOA_for_outliers['tdoa_sp_2'], TDOA_for_outliers['tdoa_sp_3'],
-                                    TDOA_for_outliers['tdoa_sp_4'],
-                                    'TDOA results from sp1', ['TDOA_21 [sec]', 'TDOA_31 [sec]', 'TDOA_41 [sec]'],
-                                    [(0.01, -0.01), (0.01, -0.01), (0.01, -0.01)])
+            if params['number_of_speakers'] == 4 :
+                utils_obj.ScatterPlot3D(TDOA_for_outliers['tdoa_sp_2'], TDOA_for_outliers['tdoa_sp_3'],
+                                        TDOA_for_outliers['tdoa_sp_4'],
+                                        'TDOA results from sp1', ['TDOA_21 [sec]', 'TDOA_31 [sec]', 'TDOA_41 [sec]'],
+                                        [(0.01, -0.01), (0.01, -0.01), (0.01, -0.01)])
 
         rec_dict, avg_list = utils_obj.Throw_Outliers(rec_dict, TDOA_for_outliers, params['avg_group_size'])
     else:
         avg_list = [1] * len(rec_dict["toa_sp_1"])
 
     print colored("generate sp2mic list", "blue")
-    sp2mic = [rec_dict['toa_sp_1'], rec_dict['toa_sp_2'], rec_dict['toa_sp_3'], rec_dict['toa_sp_4']]
+    sp2mic = [rec_dict['toa_sp_' + str(sp.id)] for sp in sp_list]
+
     sp_location = utils_obj.buildSpeakersLocationMatrix(sp_list)
 
     if params['algorithm'] == 1:

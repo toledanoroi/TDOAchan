@@ -124,8 +124,12 @@ class ChanAlgo():
         :return: list of all locations : [[<t1>,[<x>,<y>,<z>], <error>],...,[<t_final>,[<x>,<y>,<z>], <error>]].
                  error used only for LUT room matrix algorithm.
         '''
-        cols = len(sp2mic[0])
 
+        # validity check
+
+        cols = len(sp2mic[0])
+        if len(sp_location) != 4:
+            print colored("Error!! - Chan's Algorithm support only 4 speakers")
         # add here averaging results after throwing them.
         if self.use_avg:
             TDOA_dict = self.utils.Sp2MicToTDOA(sp2mic)
@@ -149,7 +153,7 @@ class ChanAlgo():
         return self.location_list
 
 class RoomMatrix(object):
-    def __init__(self,x,y,z,sp_list,avg_dim=5,res=0.1,Temprature_meas='',constant_z=-1):
+    def __init__(self, x, y, z, sp_list, avg_dim=5, res=0.1, Temprature_meas='', constant_z=-1):
         '''
         Initiate Room Matrix algorithm, define all parameters and create room quantization
         :param x: room length - x axis
@@ -211,20 +215,18 @@ class RoomMatrix(object):
             # differ = (abs(tmp2 - self.room_mat)) ** 2
             #np.sqrt(differ[:, :, :, 0] + differ[:, :, :, 1] + differ[:, :, :, 2])
             self.EuclideanDistance['sp' + str(key)] = self.CalcEucDist2mat(tmp2, self.room_mat)
-
-        self.mat4corr = np.column_stack((self.EuclideanDistance['sp1'].reshape(self.dimx * self.dimy * self.dimz, 1),
-                                         self.EuclideanDistance['sp2'].reshape(self.dimx * self.dimy * self.dimz, 1),
-                                         self.EuclideanDistance['sp3'].reshape(self.dimx * self.dimy * self.dimz, 1),
-                                         self.EuclideanDistance['sp4'].reshape(self.dimx * self.dimy * self.dimz, 1)))
+        shapeit = (self.EuclideanDistance['sp' + str(key)].reshape(self.dimx * self.dimy * self.dimz, 1)
+                   for key in self.speakers.keys())
+        self.mat4corr = np.column_stack(shapeit)
 
 
 
     def CalcTDOMat(self):
         self.TDOAmats = OD()
         tmp = self.mat4corr / float(self.speedofvoice)
-        for i in range(4):
-            tmpvector = np.tile(tmp[:,i], 4)
-            tmpvector = np.transpose(tmpvector.reshape(4,len(tmp)))
+        for i in range(len(self.speakers)):
+            tmpvector = np.tile(tmp[:, i], len(self.speakers))
+            tmpvector = np.transpose(tmpvector.reshape(len(self.speakers), len(tmp)))
             self.TDOAmats['TDOA_from_sp' + str(i+1)] = tmp - tmpvector
 
     def CalcEucDist2mat(self, mat1, mat2):
@@ -234,7 +236,7 @@ class RoomMatrix(object):
     def FindBestMatch(self, tdoa, mode='distance'):
         if mode == 'distance':
             tmp = np.tile(tdoa, self.dimx * self.dimy * self.dimz)
-            tmp2 = tmp.reshape(self.dimx * self.dimy * self.dimz, 4)
+            tmp2 = tmp.reshape(self.dimx * self.dimy * self.dimz, len(self.speakers))
             dist = self.CalcEucDist2mat(tmp2, self.TDOAmats['TDOA_from_sp1'])
             if plotting:
                 self.plotbytapsonly(dist, 'Room Euclidien Distance from measurement')
@@ -249,7 +251,7 @@ class RoomMatrix(object):
 
         return self.indextolocation(best)
 
-    def plotbytapsonly(self,sig, title):
+    def plotbytapsonly(self, sig, title):
 
         plt.plot(sig)
         plt.title(title)
@@ -269,7 +271,7 @@ class RoomMatrix(object):
             elif mode == 'corr':
                 dist.append(np.dot(self.TDOAmats[Tdoa_mat_keys[i]], tdoa_list[i]))
             if plotting:
-                self.plotbytapsonly(dist[i],'Room Euclidien Distance from measurement')
+                self.plotbytapsonly(dist[i], 'Room Euclidien Distance from measurement')
             legend.append(str(i))
         if plotting:
             plt.legend(legend)
@@ -277,7 +279,10 @@ class RoomMatrix(object):
 
         # find shared best point:
         if consideration == 'all':
-            costfunction = np.sqrt(dist[0]**2 + dist[1]**2 + dist[2]**2 + dist[3]**2)
+            summ = 0
+            for di in dist:
+                summ += di**2
+            costfunction = np.sqrt(summ)
         elif consideration == '1':
             costfunction = dist[0]
 
@@ -365,14 +370,11 @@ class RoomMatrix(object):
 
         #create matrix for match filter
         for i in range(len(time_vect)):
-            current_tdoa1 = self.measuredTDOA_vectors['TDOA_from_sp1'][i]
-            current_tdoa2 = self.measuredTDOA_vectors['TDOA_from_sp2'][i]
-            current_tdoa3 = self.measuredTDOA_vectors['TDOA_from_sp3'][i]
-            current_tdoa4 = self.measuredTDOA_vectors['TDOA_from_sp4'][i]
+            curr_tdoas = [self.measuredTDOA_vectors['TDOA_from_sp' + str(key)][i] for key in self.speakers.keys()]
 
             # find best match in LUT
             # if considered only one tdoa calculation
-            mic_location, location_error = self.WeightBestMatch([current_tdoa1,current_tdoa2,current_tdoa3,current_tdoa4])#, consideration='1')
+            mic_location, location_error = self.WeightBestMatch(curr_tdoas)#, consideration='1')
             locations_list.append([time_vect[i], mic_location, location_error])
         # else:
         #     self.Calc2DDistMatrix(constant_z)

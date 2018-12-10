@@ -262,6 +262,7 @@ if __name__ == '__main__':
                    'both': 4}
     # if TOA already exist
     params['TOA_path'] = ''  # '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_of_thegoodsig.csv' #''/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1543256067.csv'  # '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1542718040.csv'
+    params['number_of_speakers'] = 4
     params['speakers_frequencies'] = {'1': [34000, 41000],
                                       '2': [42000, 49000],
                                       '3': [20000, 27000],
@@ -334,7 +335,7 @@ if __name__ == '__main__':
 
     err2d = {}
     err3d = {}
-    delt = np.linspace(0.05, 0.2, 1)
+    delt = np.linspace(0.01, 0.2, 20)
 
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
