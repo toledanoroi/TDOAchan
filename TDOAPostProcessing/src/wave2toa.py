@@ -49,11 +49,11 @@ def resampling(speaker,rec_Fs):
 
 
 class recwav(object):
-    def __init__(self):
+    def __init__(self,point_name):
         self.path = '../inputs/blackmanharris5ms/1.wav'
         self.sample_rate = 96000
-        self.toa_csv_path = '../output/toa_record_'+str(int(time.time()))+'.csv'
-        self.results_path = '../output/locations_results_'+str(int(time.time()))+'.csv'
+        self.toa_csv_path = '../output/' + point_name + '.csv'
+        self.results_path = '../output/locations_results_' + str(int(time.time()))+'.csv'
         self.record_sig = []
         self.num_of_channels = 1
         self.prev_time = 0
@@ -329,10 +329,10 @@ def RxMain(params):
         sp_list.append(Speaker())
 
     utils_obj = UTILS()
-    record = recwav()
+    record = recwav(params['point_name'])
 
     # define room convex
-    hull, non_hull, hull2d, non_hull2d= utils_obj.DefineRoom(params['room3D'],
+    hull, non_hull, hull2d, non_hull2d = utils_obj.DefineRoom(params['room3D'],
                                                              params['triangle3D'],
                                                              shapewithnonedgepoint=False,
                                                              plotting=False
@@ -340,8 +340,8 @@ def RxMain(params):
     if not (os.path.isfile(params['TOA_path']) & params['TOA_path'].endswith('.csv')):
         record.change_path(os.path.abspath(params['record_path']), 'in')
         record.PlotSignal('blackmanharris5ms')
-        # record.PlotFFT(record.path)
-        # spectf, spectt, spectsxx = record.Spectogram()
+        record.PlotFFT(record.path)
+        spectf, spectt, spectsxx = record.Spectogram()
     for i in range(len(sp_list)):
         sp_list[i].Define_ID(i + 1,
                              params['speakers_frequencies'],
@@ -380,11 +380,16 @@ def RxMain(params):
                 # height=int(0.4 * (max(sp_list[i].correl1))),
                 distance=int(0.9 * sp_list[i].proccessed_signal.Fs / 2)    #approximatly 0.45 seconds
             )
+
+            sp_list[i].tot_corr, sp_list[i].tot_corr_height = signal.find_peaks(
+                sp_list[i].correl1,
+                height=4000)
+            sp_list[i].half = np.median(sp_list[i].tot_corr_height['peak_heights'])
+
             sp_list[i].corr_peaks_test, sp_list[i].corr_peaks_height_test = signal.find_peaks(
                 sp_list[i].correl1,
-                height=45000,           #int(0.5 * (max(sp_list[i].correl1))),
-                distance=400
-            )
+                height=sp_list[i].half,
+                distance=400)
         # align corr peaks lists to the same size
         tmp = min([len(sp.corr_peaks) for sp in sp_list])
         for sp in sp_list:
@@ -413,14 +418,13 @@ def RxMain(params):
             plt.plot(np.zeros_like(sp_list[1].correl1), "--", color="gray")
             plt.show(block=False)
 
-
         for i in range(len(sp_list[0].corr_peaks)):
             min_peak = min([sp_list[j].corr_peaks[i] for j in range(len(sp_list))])
 
             for sp in sp_list:
                 a = sp.corr_peaks_test - min_peak
                 for k in range(len(a)):
-                    if a[k] < -2500:
+                    if a[k] < -6000:
                         a[k] = 10000000000
                 loac = np.argmin(a)
                 sp.corr_peaks[i] = sp.corr_peaks_test[loac]
@@ -630,11 +634,7 @@ def RxMain(params):
 
             location_list = [[avg_time[i], [avg_location[0][i], avg_location[1][i], avg_location[2][i]], avg_error[i]]
                              for i in range(len(avg_time))]
-    if params['algorithm'] < 4:
-        results_dict = utils_obj.res2csv(location_list, record.results_path)
 
-    res2print = df(results_dict)
-    print colored(res2print, 'green')
 
     # need to add calculate error from expected value (Euclidean Distance)
 
@@ -666,7 +666,19 @@ def RxMain(params):
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
+    point_number = int(params['TOA_path'][params['TOA_path'].rfind('/') + 2: params['TOA_path'].rfind('.')])
 
+    if params['algorithm'] < 4:
+        results_dict = utils_obj.res2csv(location_list,
+                                         record.results_path,
+                                         1,
+                                         params['expected_points'][0][0],
+                                         params['expected_points'][0][1],
+                                         params['expected_points'][0][2],
+                                         point_number)
+
+    res2print = df(results_dict)
+    print colored(res2print, 'green')
     # error calculation
     err2d = []
     err3d = []
@@ -681,6 +693,19 @@ def RxMain(params):
 
     print "For 2D:\nmax error = {0}\nmin error = {1}\naverage error = {2}".format(max(err2d), min(err2d), np.average(err2d))
     print "For 3D:\nmax error = {0}\nmin error = {1}\naverage error = {2}".format(max(err3d), min(err3d), np.average(err3d))
+
+
+    if params['algorithm'] < 4:
+        results_dict = utils_obj.res2csv(location_list,
+                                         record.results_path,
+                                         np.average(err3d),
+                                         params['expected_points'][0][0],
+                                         params['expected_points'][0][1],
+                                         params['expected_points'][0][2],
+                                         point_number)
+
+    res2print = df(results_dict)
+    print colored(res2print, 'green')
 
     return np.average(err2d), np.average(err3d)
 

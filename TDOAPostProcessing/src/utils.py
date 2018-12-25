@@ -4,6 +4,7 @@
 # guide  : PhD Yossi Yovel
 
 import numpy as np
+import pandas as pd
 import scipy.signal
 import csv
 import os
@@ -141,7 +142,7 @@ class UTILS(object):
                         my_dict[key].append(float(value))
         return my_dict
 
-    def res2csv(self, locations, path):
+    def res2csv(self, locations, path, error, ex, ey, ez, pnt_name):
         '''
         takes results dictionary and generate csv of it.
         :param locations: results dictionary
@@ -149,14 +150,35 @@ class UTILS(object):
         :return:
         '''
         with open(path, 'wb') as fout:
-            writer = csv.DictWriter(fout, fieldnames=["Iteration", "Time [sec]", "X [m]", "Y [m]", "Z [m]", "Error"])
+            writer = csv.DictWriter(fout, fieldnames=["Iteration", "Time [sec]", "X [m]", "Y [m]", "Z [m]", "cost_function_value","point_set",'E[x]','E[y]','E[z]','Error'])
             writer.writeheader()
             iterr = 1
             for locat in locations:
                 writer.writerow({"Iteration": iterr, "Time [sec]":locat[0],
-                                 "X [m]":locat[1][0],"Y [m]":locat[1][1],"Z [m]":locat[1][2],"Error":locat[2]})
+                                 "X [m]": locat[1][0],
+                                 "Y [m]": locat[1][1],
+                                 "Z [m]": locat[1][2],
+                                 "cost_function_value": locat[2],
+                                 "point_set": pnt_name,
+                                 'E[x]': ex,
+                                 'E[y]': ey,
+                                 'E[z]': ez,
+                                 'Error': error
+                                 }
+                                )
                 iterr += 1
-        results_dict = self.csv2dict(path,{"Iteration": [], "Time [sec]": [], "X [m]": [], "Y [m]": [], "Z [m]": [], "Error": []})
+        results_dict = self.csv2dict(path,{"Iteration": [],
+                                           "Time [sec]": [],
+                                           "X [m]": [],
+                                           "Y [m]": [],
+                                            "Z [m]": [],
+                                            "cost_function_value": [],
+                                            "point_set": [],
+                                            'E[x]': [],
+                                            'E[y]': [],
+                                            'E[z]': [],
+                                            'Error': []
+                                           })
         return results_dict
 
     def buildSpeakersLocationMatrix(self,sp_list):
@@ -461,9 +483,14 @@ class UTILS(object):
         default = None
         '''
         fig = plt.figure()
+        c = 0
         ax = fig.add_subplot(111)
         for i in range(len(x_pnt)):
             ax.scatter(x_pnt[i], y_pnt[i], c='b', marker='o')
+            if np.mod(i, 2) == 0:
+                c += 1
+            ax.annotate(str(c), (x_pnt[i], y_pnt[i]))
+
 
         ax.set_xlabel(labels[0])
         ax.set_ylabel(labels[1])
@@ -486,9 +513,12 @@ class UTILS(object):
                 ax.plot(pts2[s, 0], pts2[s, 1], "m-")
 
         if expected is not None:
-            for pnt in expected:
+            for ii, pnt in enumerate(expected):
                 ax.scatter(pnt[0], pnt[1], c='g', marker='*')
+                if np.mod(ii, 2) == 0:
+                    ax.annotate('a' + str(1 + ii/2), (pnt[0], pnt[1]))
 
+        plt.grid()
         plt.show()
 
     def CalcErrorFromExpected(self, pnt, expected):
@@ -572,6 +602,22 @@ class UTILS(object):
         if np.array_equal(new_hull.vertices, hull.vertices):
             return True
         return False
+
+    def MergecsvAndGenerateForPlotting(self,folder,prefix='a'):
+        import fnmatch
+        import os
+        err2d = []
+        err3d = []
+        matches = []
+        # a = os.walk('/Users/roitoledano/Desktop/WLAN_vids')
+        # for dirs in a:
+        #     print dirs
+        for root, dirnames, filenames in os.walk(folder):
+            for filename in fnmatch.filter(filenames, prefix + '*.csv'):
+                match = os.path.join(root, filename)
+                matches.append(pd.read_csv(match))
+
+
 
 
 class SignalHandler(object):

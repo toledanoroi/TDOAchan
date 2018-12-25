@@ -24,12 +24,12 @@ def ToaGenerator(base_path, params, prefix='5mili'):
     # for dirs in a:
     #     print dirs
     for root, dirnames, filenames in os.walk(base_path):
-        for filename in fnmatch.filter(filenames, prefix + '*.WAV'):
-            matches.append(os.path.join(root, filename))
-    params['only_toa'] = True
-    for match in matches:
-        params['record_path'] = match
-        RxMain(params)
+        for filename in fnmatch.filter(filenames, prefix + '*.wav'):
+            match = os.path.join(root, filename)
+            params['only_toa'] = True
+            params['record_path'] = match
+            params['point_name'] = filename[:filename.rfind('.')]
+            RxMain(params)
 
 def RunMultipleRecords(fin,params):
     '''
@@ -70,6 +70,44 @@ def ReadToaandExpected(fin):
     resfile = read_csv(fin)
     return [(resfile['toa_path'][i],resfile['e_x'][i],resfile['e_y'][i],resfile['e_z'][i])
             for i in range(len(resfile['toa_path'])) if op.isfile(resfile['toa_path'][i])]
+
+def PlotResults(fin, _params, show='2D'):
+    from src.utils import UTILS as ut
+    from pandas import read_csv , DataFrame
+    utils_obj = ut()
+    # define room convex
+    hull, non_hull, hull2d, non_hull2d = utils_obj.DefineRoom(_params['room3D'],
+                                                              _params['triangle3D'],
+                                                              shapewithnonedgepoint=False,
+                                                              plotting=False
+                                                             )
+    # read file:
+    results = read_csv(fin)
+    expected_locations = [[results['E[x]'][i],results['E[y]'][i]] for i in xrange(len(results['E[x]']))]
+
+    if show == '2D':
+        utils_obj.ScatterPlot2D(results['X [m]'],
+                                results['Y [m]'],
+                                'Room LUT algorithm results',
+                                ['X [m]', 'Y [m]'],
+                                [(0 ,_params['room_sizes']['x']), (0, _params['room_sizes']['y'])],
+                                cvx1=hull2d,
+                                cvx2=non_hull2d,
+                                expected=expected_locations
+                                )
+    else:
+        print "TBD"
+        pass
+
+    # plotting error
+    from matplotlib.pyplot import plot, show, xlabel, ylabel, title, scatter, grid
+    plot(results['Iteration'], results['Error'])
+    scatter(results['Iteration'], results['Error'])
+    xlabel("Iteration number")
+    ylabel("Euclidean Error")
+    title("Euclidian distance error per iteration")
+    grid()
+    show()
 
 def RunToaList(fin, params):
     '''
@@ -246,6 +284,7 @@ if __name__ == '__main__':
         2        |  run multiple records (WAV file) full - wave parsing and algorithm
         3        |  use toa csvs to run only the algorithm
         4        |  one shot - take one .wav file and run it full -> wave parsing and algorithm
+        5        |  plot results from results file.
     ---------------------------------------------------------------------------------------------
     '''
 
@@ -253,7 +292,7 @@ if __name__ == '__main__':
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
-    res_iteration = False
+    res_iteration = True
     mode = 3
     params = {}
     algorithm_d = {'chan': 1,
@@ -261,7 +300,7 @@ if __name__ == '__main__':
                    'room': 3,
                    'both': 4}
     # if TOA already exist
-    params['TOA_path'] = ''  # '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_of_thegoodsig.csv' #''/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1543256067.csv'  # '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1542718040.csv'
+    params['TOA_path'] = '/005.m'  # '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_of_thegoodsig.csv' #''/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1543256067.csv'  # '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toa_record_1542718040.csv'
     params['number_of_speakers'] = 4
     params['speakers_frequencies'] = {'1': [34000, 41000],
                                       '2': [42000, 49000],
@@ -273,28 +312,29 @@ if __name__ == '__main__':
       '3': [34000, 41000],
       '4': [42000, 49000]}
     '''
-    params['speakers_locations_d'] = {'1': [0.0564, 0.0712, 2.3172],
-                                      '2': [0.377, 3.73, 1.5539],
-                                      '3': [3.77, 0.7454, 2.2249],
-                                      '4': [3.9559, 3.8892, 1.5578]}
+    params['speakers_locations_d'] = {'1': [0.1143, 0.0124, 2.3287],
+                                      '2': [0.035, 3.9241, 2.0008],
+                                      '3': [3.7616, 0.7417, 2.2762],
+                                      '4': [4.0258, 3.9120, 1.51]}
     params['room_sizes'] = {'x': 4.057,
                             'y': 3.928,
                             'z': 2.464}
-    params['constant_z'] = 0.994
+    params['constant_z'] = 0.981
     params['only_toa'] = False
+    import time
+    params['point_name'] = '../output/TOA_' + str(int(time.time())) + '.csv'
 
     params['chirp_time'] = 0.005
     params['filter_size'] = 1001
-    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/mat_files/allchirps_ChangedFreq.mat'
-    params['record_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/goodsig_254_267_089.WAV'
+    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digi_bh_5m.mat'
+    params['record_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh/a0000006.wav'
     params['signal_mode'] = 1
     frecords = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/records.csv'
-    ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs_.csv'
-    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/records_test'
+    ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs_digital.csv'
+    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh'
 
     params['algorithm'] = algorithm_d['room']
     params['resolution'] = 0.05  # [m]
-
     params['use_averaging_before_calculation'] = True
     params['time_factor'] = 2
     params['avg_group_size'] = 5
@@ -328,23 +368,25 @@ if __name__ == '__main__':
         params['triangle2D'].append(pnt[0:2])
 
     # expected_point for the relevant test
-    params['expected_points'] = [np.array([2.54, 2.67, 0.89])]
+    params['expected_points'] = [np.array([3.347, 2.058, 0.981])]
     params['expected_points2d'] = []
     for pnt in params['expected_points']:
         params['expected_points2d'].append(pnt[0:2])
 
     err2d = {}
     err3d = {}
-    delt = np.linspace(0.01, 0.2, 20)
-
+    # delt = np.linspace(0.01, 0.2, 20)
+    delt = [0.005]
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # run the relevant mode
     if mode == 4:
+        params['point_name'] = params['record_path'][params['record_path'].rfind('/') + 1: params['record_path'].rfind('.')]
         if res_iteration:
             for k in delt:
                 params['resolution'] = k
+
                 print colored("LUT room matrix Algorithm\n\tresolution = {0}\n\texpected"
                               " location = {1}".format(params['resolution'], params['expected_points'][0]), "red")
                 a, b = RxMain(params)
@@ -361,6 +403,10 @@ if __name__ == '__main__':
     elif mode == 3:
         # run loop with many records to examine the algorithm performence
         err2d, err3d = RunToaList(ftoas, params)
+    elif mode == 5:
+        PlotResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/locations_results_17122018.csv',
+                    params)
+
 
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------

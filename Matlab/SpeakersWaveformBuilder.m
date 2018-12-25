@@ -44,10 +44,10 @@ switch(mode)
     otherwise    
         switch msg
             case 'chirp'
-                sig1 = chirp4sp(t,freqs_mat(1,1),time,freqs_mat(1,2));
-                sig2 = chirp4sp(t,freqs_mat(2,1),time,freqs_mat(2,2));
-                sig3 = chirp4sp(t,freqs_mat(3,1),time,freqs_mat(3,2));
-                sig4 = chirp4sp(t,freqs_mat(4,1),time,freqs_mat(4,2));
+                sig1 = chirp4sp(t,freqs_mat(1,2),time,freqs_mat(1,1));
+                sig2 = chirp4sp(t,freqs_mat(2,2),time,freqs_mat(2,1));
+                sig3 = chirp4sp(t,freqs_mat(3,2),time,freqs_mat(3,1));
+                sig4 = chirp4sp(t,freqs_mat(4,2),time,freqs_mat(4,1));
             case 'radar_chirp'
                 sig1 = UpAndDownchirp4sp(t, freqs_mat(1,1),time,freqs_mat(1,2),'up');
                 sig2 = UpAndDownchirp4sp(t, freqs_mat(2,1),time,freqs_mat(2,2),'up');
@@ -78,20 +78,20 @@ switch(mode)
         sig4 = sig4 .* win;
 end
 
-    allchirp = [sig1 sig2 sig3 sig4];
-    save('allchirps.mat', 'allchirp');
-
-    %plotting for debug
-    a = allchirp(:,1);
-    b = allchirp(:,2);
-    c = allchirp(:,3);
-    d = allchirp(:,4);
-    figure; hold on; plot(t,a); plot(t,b); plot(t,c); plot(t,d);
-    title('Transmitted Signals [time domain]'); legend('sp1','sp2','sp3','sp4');
-    figure; hold on; plot(xcorr(a,a));plot(xcorr(b,b));plot(xcorr(c,c));plot(xcorr(d,d));
-    title('Autocorrelation'); legend('sp1','sp2','sp3','sp4');
-    figure; hold on; plot(xcorr(a,a));plot(xcorr(a,b));plot(xcorr(a,c));plot(xcorr(a,d));
-    title('Cross-correlation'); legend('sp1 - sp1','sp1 - sp2','sp1 - sp3','sp1 - sp4');
+     allchirp = [sig1 sig2 sig3 sig4];
+%     save('allchirps.mat', 'allchirp');
+% 
+%     %plotting for debug
+%     a = allchirp(:,1);
+%     b = allchirp(:,2);
+%     c = allchirp(:,3);
+%     d = allchirp(:,4);
+%     figure; hold on; plot(t,a); plot(t,b); plot(t,c); plot(t,d);
+%     title('Transmitted Signals [time domain]'); legend('sp1','sp2','sp3','sp4');
+%     figure; hold on; plot(xcorr(a,a));plot(xcorr(b,b));plot(xcorr(c,c));plot(xcorr(d,d));
+%     title('Autocorrelation'); legend('sp1','sp2','sp3','sp4');
+%     figure; hold on; plot(xcorr(a,a));plot(xcorr(a,b));plot(xcorr(a,c));plot(xcorr(a,d));
+%     title('Cross-correlation'); legend('sp1 - sp1','sp1 - sp2','sp1 - sp3','sp1 - sp4');
 
 
 end
