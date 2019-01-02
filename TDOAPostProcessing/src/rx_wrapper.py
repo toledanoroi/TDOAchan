@@ -17,12 +17,7 @@ def ToaGenerator(base_path, params, prefix='5mili'):
     '''
     import fnmatch
     import os
-    err2d = []
-    err3d = []
-    matches = []
-    # a = os.walk('/Users/roitoledano/Desktop/WLAN_vids')
-    # for dirs in a:
-    #     print dirs
+
     for root, dirnames, filenames in os.walk(base_path):
         for filename in fnmatch.filter(filenames, prefix + '*.wav'):
             match = os.path.join(root, filename)
@@ -30,6 +25,72 @@ def ToaGenerator(base_path, params, prefix='5mili'):
             params['record_path'] = match
             params['point_name'] = filename[:filename.rfind('.')]
             RxMain(params)
+
+def RunWithoutExpected(base_path, params, prefix='a',
+                       locations_path='/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/location_results',
+                       ToA_path = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/toas_samples'):
+    '''
+        runs the algorithm for for all WAV files in a folder with required prefix
+        generates TOA files for each wav and generate locations list
+        :param base_path: the folder we want to search in.
+        :param params: All tests params to send to RxMain function (imported from src.wave2toa)
+        :param prefix: The prefix for wanted files
+        '''
+    import fnmatch
+    import os
+    from src.utils import UTILS
+
+    for path in [locations_path, ToA_path]:
+        try:
+            os.rmdir(path)
+        except OSError:
+            print colored("removing the directory %s failed" % path, 'blue')
+        try:
+            os.mkdir(path)
+        except OSError:
+            if os.path.isdir(path):
+                for root, dirnames, filenames in os.walk(path):
+                    for filename in fnmatch.filter(filenames, prefix + '*.wav'):
+                        match = os.path.join(root, filename)
+                        os.remove(match)
+                print ("All the files in the directory %s removed" % path)
+            else:
+                print ("Creation of the directory %s failed" % path)
+        else:
+            print ("Successfully created the directory %s " % path)
+
+    params['expected_points'] = [np.array([-1, -1, -1])]
+    ut = UTILS()
+
+
+    for root, dirnames, filenames in os.walk(base_path):
+        for filename in fnmatch.filter(filenames, prefix + '*.wav'):
+            match = os.path.join(root, filename)
+            params['record_path'] = match
+            params['point_name'] = filename[:filename.rfind('.')]
+            params['ToAs_file'] = ToA_path + '/' + params['point_name'] + '.csv'
+            params['unique_path'] = locations_path + '/location_res_' + params['point_name'] + '.csv'
+            RxMain(params)
+    output = locations_path + '/merged_results.csv'
+    results = ut.MergecsvAndGenerateForPlotting(locations_path, prefix='location_',output_path=output)
+
+    if params['constant_z'] != -1:
+        PlotResults(output, params)
+    else:
+        PlotResults(output, params, show='3D')
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def RunMultipleRecords(fin,params):
     '''
@@ -83,31 +144,49 @@ def PlotResults(fin, _params, show='2D'):
                                                              )
     # read file:
     results = read_csv(fin)
-    expected_locations = [[results['E[x]'][i],results['E[y]'][i]] for i in xrange(len(results['E[x]']))]
+    if ((results['E[x]'][0] >= 0) & (results['E[y]'][0] >= 0) & (results['E[z]'][0] >= 0) ):
+        expected_locations = [[results['E[x]'][i], results['E[y]'][i]]
+                              for i in xrange(len(results['E[x]']))]
+    else:
+        expected_locations = None
 
     if show == '2D':
         utils_obj.ScatterPlot2D(results['X [m]'],
                                 results['Y [m]'],
-                                'Room LUT algorithm results',
+                                'Room LUT algorithm results - 2D',
                                 ['X [m]', 'Y [m]'],
                                 [(0 ,_params['room_sizes']['x']), (0, _params['room_sizes']['y'])],
                                 cvx1=hull2d,
                                 cvx2=non_hull2d,
-                                expected=expected_locations
+                                expected=expected_locations,
+                                points=results['point_set']
                                 )
     else:
-        print "TBD"
-        pass
+        utils_obj.ScatterPlot3D(results['X [m]'],
+                                results['Y [m]'],
+                                results['Z [m]'],
+                                'Room LUT algorithm results - 3D',
+                                ['X [m]', 'Y [m]', 'Z [m]'],
+                                [(0, _params['room_sizes']['x']), (0, _params['room_sizes']['y']), (0, _params['room_sizes']['z'])],
+                                cvx1=hull,
+                                cvx2=non_hull,
+                                expected=expected_locations,
+                                points=results['point_set']
+                                )
 
     # plotting error
-    from matplotlib.pyplot import plot, show, xlabel, ylabel, title, scatter, grid
-    plot(results['Iteration'], results['Error'])
-    scatter(results['Iteration'], results['Error'])
-    xlabel("Iteration number")
-    ylabel("Euclidean Error")
-    title("Euclidian distance error per iteration")
-    grid()
-    show()
+    if expected_locations == None:
+        from matplotlib.pyplot import show
+        show()
+    else:
+        from matplotlib.pyplot import plot, show, xlabel, ylabel, title, scatter, grid
+        plot(results['Iteration'], results['Error'])
+        scatter(results['Iteration'], results['Error'])
+        xlabel("Iteration number")
+        ylabel("Euclidean Error")
+        title("Euclidian distance error per iteration")
+        grid()
+        show()
 
 def RunToaList(fin, params):
     '''
@@ -285,6 +364,7 @@ if __name__ == '__main__':
         3        |  use toa csvs to run only the algorithm
         4        |  one shot - take one .wav file and run it full -> wave parsing and algorithm
         5        |  plot results from results file.
+        6        |  run .wav files from folder without expected result
     ---------------------------------------------------------------------------------------------
     '''
 
@@ -292,8 +372,8 @@ if __name__ == '__main__':
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
-    res_iteration = True
-    mode = 3
+    res_iteration = False
+    mode = 4
     params = {}
     algorithm_d = {'chan': 1,
                    'taylor': 2,
@@ -312,29 +392,38 @@ if __name__ == '__main__':
       '3': [34000, 41000],
       '4': [42000, 49000]}
     '''
-    params['speakers_locations_d'] = {'1': [0.1143, 0.0124, 2.3287],
-                                      '2': [0.035, 3.9241, 2.0008],
-                                      '3': [3.7616, 0.7417, 2.2762],
-                                      '4': [4.0258, 3.9120, 1.51]}
-    params['room_sizes'] = {'x': 4.057,
-                            'y': 3.928,
-                            'z': 2.464}
-    params['constant_z'] = 0.981
+    # params['speakers_locations_d'] = {'1': [0.323, 3.646, 0.504],
+    #                                   '2': [1.75, 0.43, 0.589],
+    #                                   '3': [1.738, 2.843, 0.909],
+    #                                   '4': [0.059, 0.158, 2.21]}
+
+    params['speakers_locations_d'] = {'1': [0.2973, 3.6627, 0.504],
+                                      '2': [1.8253, 0.4246, 0.589],
+                                      '3': [1.7077, 2.8073, 0.9979],
+                                      '4': [0.1039, 0.2065, 2.21]}
+
+    params['room_sizes'] = {'x': 1.966,
+                            'y': 4.272,
+                            'z': 3.051}
+
+    params['constant_z'] = 0.61
     params['only_toa'] = False
     import time
     params['point_name'] = '../output/TOA_' + str(int(time.time())) + '.csv'
 
-    params['chirp_time'] = 0.005
+    params['chirp_time'] = 0.002
     params['filter_size'] = 1001
-    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digi_bh_5m.mat'
-    params['record_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh/a0000006.wav'
+    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/chirp_2m_bh.mat'
+    params['record_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/batroom/a0000002.wav'
     params['signal_mode'] = 1
+    params['unique_path'] = 'no_path'
+    params['ToAs_file'] = 'no_path'
     frecords = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/records.csv'
     ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs_digital.csv'
-    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh'
+    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/chirp_2m_bh'
 
     params['algorithm'] = algorithm_d['room']
-    params['resolution'] = 0.05  # [m]
+    params['resolution'] = 0.005  # [m]
     params['use_averaging_before_calculation'] = True
     params['time_factor'] = 2
     params['avg_group_size'] = 5
@@ -344,14 +433,10 @@ if __name__ == '__main__':
                                  np.array([0, 0, params['room_sizes']['z']]),
                                  np.array([params['room_sizes']['x'], 0, 0]),
                                  np.array([params['room_sizes']['x'], 0, params['room_sizes']['z']]),
+                                 np.array([0, params['room_sizes']['y'], 0]),
+                                 np.array([0, params['room_sizes']['y'], params['room_sizes']['z']]),
                                  np.array([params['room_sizes']['x'], params['room_sizes']['y'], 0]),
-                                 np.array([params['room_sizes']['x'], params['room_sizes']['y'], params['room_sizes']['z']]),
-                                 np.array([0.676, params['room_sizes']['y'], 0]),
-                                 np.array([0.676, params['room_sizes']['y'], params['room_sizes']['z']]),
-                                 np.array([0.676, 1.82, 0]),
-                                 np.array([0.676, 1.82, params['room_sizes']['z']]),
-                                 np.array([0, 1.82, 0]),
-                                 np.array([0, 1.82, params['room_sizes']['z']]),
+                                 np.array([params['room_sizes']['x'], params['room_sizes']['y'], params['room_sizes']['z']])
                                  ])
     params['triangle3D'] = np.array([np.array([0.676, params['room_sizes']['y'], 0]),
                                      np.array([0.676, params['room_sizes']['y'], params['room_sizes']['z']]),
@@ -368,7 +453,7 @@ if __name__ == '__main__':
         params['triangle2D'].append(pnt[0:2])
 
     # expected_point for the relevant test
-    params['expected_points'] = [np.array([3.347, 2.058, 0.981])]
+    params['expected_points'] = [np.array([1, 2, 0.61])]
     params['expected_points2d'] = []
     for pnt in params['expected_points']:
         params['expected_points2d'].append(pnt[0:2])
@@ -406,6 +491,9 @@ if __name__ == '__main__':
     elif mode == 5:
         PlotResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/locations_results_17122018.csv',
                     params)
+    elif mode == 6:
+        RunWithoutExpected(frecbase, params, prefix='a')
+
 
 
     # ---------------------------------------------------------------------------------------------------------

@@ -219,8 +219,6 @@ class RoomMatrix(object):
                    for key in self.speakers.keys())
         self.mat4corr = np.column_stack(shapeit)
 
-
-
     def CalcTDOMat(self):
         self.TDOAmats = OD()
         tmp = self.mat4corr / float(self.speedofvoice)
@@ -305,46 +303,6 @@ class RoomMatrix(object):
         z = int(index - x * (self.dimy * self.dimz) - y * self.dimz)
         return self.room_mat[x, y, z, :]
 
-
-
-
-    # def Sp2MicToTDOA(self,sp2mic,avg_list,use_avg,time_vect):
-    #     rows = len(sp2mic)
-    #     self.measuredTDOA_vectors = OD()
-    #     for i in range(rows):
-    #         tmpvector = np.transpose(np.array(sp2mic) - np.array(sp2mic[i]))
-    #         self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)] = tmpvector
-    #     if use_avg:
-    #         self.measuredTDOA_vectors, time_vect = self.AveragingSamples(avg_list,time_vect)
-    #         self.utils.AveragingSamples(avg_list, time_vect, self.avg_dim, self.measuredTDOA_vectors)
-    #     return time_vect
-    #
-    # def AveragingSamples(self,avg_list,time_vect):
-    #     from statistics import mean
-    #     v = [[],[],[],[]]
-    #     time_avg = []
-    #     v_avg = OD()
-    #     v_avg['TDOA_from_sp1'] = []
-    #     v_avg['TDOA_from_sp2'] = []
-    #     v_avg['TDOA_from_sp3'] = []
-    #     v_avg['TDOA_from_sp4'] = []
-    #
-    #     last = 0
-    #     last_ = 0
-    #     curr_ = 0
-    #     curr = 0
-    #     for avg in avg_list:
-    #         curr += avg
-    #         curr_ += self.avg_dim
-    #         for i in range(len(v)):
-    #             v[i] = self.measuredTDOA_vectors['TDOA_from_sp' + str(i+1)][last:curr]
-    #             v_avg['TDOA_from_sp' + str(i+1)].append([mean([k[j] for k in v[i]]) for j in range(len(v[i][0]))])
-    #         time_avg.append(mean(time_vect[last_:curr_]))
-    #         last = curr
-    #         last_ = curr_
-    #
-    #     return v_avg, time_avg
-
     def RoomMatMain(self, sp2mic, time_vect, avg_list, room_shape='square',use_avg=False, constant_z=-1):
         '''
         :param sp2mic: TOA samples from each speaker to the microphone
@@ -376,25 +334,6 @@ class RoomMatrix(object):
             # if considered only one tdoa calculation
             mic_location, location_error = self.WeightBestMatch(curr_tdoas)#, consideration='1')
             locations_list.append([time_vect[i], mic_location, location_error])
-        # else:
-        #     self.Calc2DDistMatrix(constant_z)
-        #     self.Calc2DTDOAMat()
-        #     self.measuredTDOA_vectors = self.utils.Sp2MicToTDOA(sp2mic)
-        #     if use_avg:
-        #         self.measuredTDOA_vectors, time_vect = self.utils.AveragingSamples(avg_list, time_vect, self.avg_dim, self.measuredTDOA_vectors)
-        #
-        #         # create matrix for match filter
-        #         for i in range(len(time_vect)):
-        #             current_tdoa1 = self.measuredTDOA_vectors['TDOA_from_sp1'][i]
-        #             current_tdoa2 = self.measuredTDOA_vectors['TDOA_from_sp2'][i]
-        #             current_tdoa3 = self.measuredTDOA_vectors['TDOA_from_sp3'][i]
-        #             current_tdoa4 = self.measuredTDOA_vectors['TDOA_from_sp4'][i]
-        #
-        #             # find best match in LUT
-        #             # if considered only one tdoa calculation
-        #             mic_location, location_error = self.WeightBestMatch(
-        #                 [current_tdoa1, current_tdoa2, current_tdoa3, current_tdoa4])  # , consideration='1')
-        #             locations_list.append([time_vect[i], mic_location, location_error])
 
         self.finish_time = time()
         print "algorithm time : {}".format(self.finish_time - self.wakeup_time)

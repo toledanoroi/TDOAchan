@@ -9,8 +9,7 @@ import numpy as np
 from pandas import DataFrame as df
 import time
 import os
-from scipy import signal
-from scipy import io
+from scipy import signal, io
 import scipy.fftpack as fftpkt
 from matplotlib import pyplot as plt
 import sys
@@ -49,7 +48,7 @@ def resampling(speaker,rec_Fs):
 
 
 class recwav(object):
-    def __init__(self,point_name):
+    def __init__(self, point_name):
         self.path = '../inputs/blackmanharris5ms/1.wav'
         self.sample_rate = 96000
         self.toa_csv_path = '../output/' + point_name + '.csv'
@@ -330,11 +329,17 @@ def RxMain(params):
 
     utils_obj = UTILS()
     record = recwav(params['point_name'])
+    if params['unique_path'] != 'no_path':
+        record.results_path = params['unique_path']
+
+    if params['ToAs_file'] != 'no_path':
+        record.toa_csv_path = params['ToAs_file']
+
 
     # define room convex
     hull, non_hull, hull2d, non_hull2d = utils_obj.DefineRoom(params['room3D'],
                                                              params['triangle3D'],
-                                                             shapewithnonedgepoint=False,
+                                                             shapewithnonedgepoint=True,
                                                              plotting=False
                                                              )
     if not (os.path.isfile(params['TOA_path']) & params['TOA_path'].endswith('.csv')):
@@ -363,6 +368,13 @@ def RxMain(params):
             plt.plot(peaks, record.signal[peaks], "x")
             plt.plot(np.zeros_like(record.signal), "--", color="gray")
             plt.show(block=False)
+        #     here is where we handle the peaks finder
+        # --------------------------------------------------------
+        # --------------------------------------------------------
+        # --------------------------------------------------------
+            # --------------------------------------------------------
+            # --------------------------------------------------------
+            # --------------------------------------------------------
         for i in range(len(sp_list)):
             # resampling(sp_list[i], record.sample_rate)
             sp_list[i].unfiltered_signal['signal'] = record.signal
@@ -383,13 +395,20 @@ def RxMain(params):
 
             sp_list[i].tot_corr, sp_list[i].tot_corr_height = signal.find_peaks(
                 sp_list[i].correl1,
-                height=4000)
+                height=4000) # noise correlation height threshold
             sp_list[i].half = np.median(sp_list[i].tot_corr_height['peak_heights'])
 
             sp_list[i].corr_peaks_test, sp_list[i].corr_peaks_height_test = signal.find_peaks(
                 sp_list[i].correl1,
                 height=sp_list[i].half,
-                distance=400)
+                distance=400) # distance between consecutive peaks
+
+            # --------------------------------------------------------
+            # --------------------------------------------------------
+            # --------------------------------------------------------
+            # --------------------------------------------------------
+            # --------------------------------------------------------
+            # --------------------------------------------------------
         # align corr peaks lists to the same size
         tmp = min([len(sp.corr_peaks) for sp in sp_list])
         for sp in sp_list:
@@ -635,38 +654,15 @@ def RxMain(params):
             location_list = [[avg_time[i], [avg_location[0][i], avg_location[1][i], avg_location[2][i]], avg_error[i]]
                              for i in range(len(avg_time))]
 
-
-    # need to add calculate error from expected value (Euclidean Distance)
-
-    if plotting:
-        utils_obj.ScatterPlot3D(results_dict['X [m]'],
-                                results_dict['Y [m]'],
-                                results_dict['Z [m]'],
-                                'Algrithm localization decision - location of microphone 3D',
-                                ['X[m]', 'Y[m]', 'Z[m]'],
-                                [(0, params['room_sizes']['x']),
-                                 (0, params['room_sizes']['y']),
-                                 (0, params['room_sizes']['z'])],
-                                cvx1=hull,
-                                cvx2=non_hull,
-                                expected=params['expected_points']
-                                )
-
-        utils_obj.ScatterPlot2D(results_dict['X [m]'],
-                                results_dict['Y [m]'],
-                                'Algrithm localization decision - location of microphone 2D',
-                                ["X[m]", "Y[m]"],
-                                [(-0.2, params['room_sizes']['x']+0.2),
-                                 (-0.2, params['room_sizes']['y']+0.2)],
-                                cvx1=hull2d,
-                                cvx2=non_hull2d,
-                                expected=params['expected_points2d']
-                                )
-
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
-    point_number = int(params['TOA_path'][params['TOA_path'].rfind('/') + 2: params['TOA_path'].rfind('.')])
+    if (os.path.isfile(params['TOA_path']) & params['TOA_path'].endswith('.csv')):
+        point_number = int(params['TOA_path'][params['TOA_path'].rfind('/') + 2: params['TOA_path'].rfind('.')])
+    elif (os.path.isfile(params['ToAs_file']) & params['ToAs_file'].endswith('.csv')):
+        point_number = int(params['ToAs_file'][params['ToAs_file'].rfind('/') + 2: params['ToAs_file'].rfind('.')])
+    else:
+        point_number = 1
 
     if params['algorithm'] < 4:
         results_dict = utils_obj.res2csv(location_list,
@@ -706,6 +702,32 @@ def RxMain(params):
 
     res2print = df(results_dict)
     print colored(res2print, 'green')
+
+
+    if plotting:
+        utils_obj.ScatterPlot3D(results_dict['X [m]'],
+                                results_dict['Y [m]'],
+                                results_dict['Z [m]'],
+                                'Algrithm localization decision - location of microphone 3D',
+                                ['X[m]', 'Y[m]', 'Z[m]'],
+                                [(0, params['room_sizes']['x']),
+                                 (0, params['room_sizes']['y']),
+                                 (0, params['room_sizes']['z'])],
+                                cvx1=hull,
+                                cvx2=non_hull,
+                                expected=params['expected_points']
+                                )
+
+        utils_obj.ScatterPlot2D(results_dict['X [m]'],
+                                results_dict['Y [m]'],
+                                'Algrithm localization decision - location of microphone 2D',
+                                ["X[m]", "Y[m]"],
+                                [(-0.2, params['room_sizes']['x']+0.2),
+                                 (-0.2, params['room_sizes']['y']+0.2)],
+                                cvx1=hull2d,
+                                cvx2=non_hull2d,
+                                expected=params['expected_points2d']
+                                )
 
     return np.average(err2d), np.average(err3d)
 

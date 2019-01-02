@@ -139,7 +139,10 @@ class UTILS(object):
                 reader = csv.DictReader(fin)
                 for line in reader:
                     for key,value in line.items():
-                        my_dict[key].append(float(value))
+                        if value.replace('.','',1).isdigit():
+                            my_dict[key].append(float(value))
+                        else:
+                            my_dict[key].append(value)
         return my_dict
 
     def res2csv(self, locations, path, error, ex, ey, ez, pnt_name):
@@ -150,7 +153,7 @@ class UTILS(object):
         :return:
         '''
         with open(path, 'wb') as fout:
-            writer = csv.DictWriter(fout, fieldnames=["Iteration", "Time [sec]", "X [m]", "Y [m]", "Z [m]", "cost_function_value","point_set",'E[x]','E[y]','E[z]','Error'])
+            writer = csv.DictWriter(fout, fieldnames=["Iteration", "Time [sec]", "X [m]", "Y [m]", "Z [m]", "cost_function_value","point_set",'E[x]','E[y]','E[z]','Error','toa_number','toa_path'])
             writer.writeheader()
             iterr = 1
             for locat in locations:
@@ -163,7 +166,9 @@ class UTILS(object):
                                  'E[x]': ex,
                                  'E[y]': ey,
                                  'E[z]': ez,
-                                 'Error': error
+                                 'Error': error,
+                                 'toa_number': path[path.rfind('/')+1:path.rfind('.')],
+                                 'toa_path': path
                                  }
                                 )
                 iterr += 1
@@ -177,7 +182,9 @@ class UTILS(object):
                                             'E[x]': [],
                                             'E[y]': [],
                                             'E[z]': [],
-                                            'Error': []
+                                            'Error': [],
+                                           'toa_number': [],
+                                           'toa_path': []
                                            })
         return results_dict
 
@@ -429,7 +436,7 @@ class UTILS(object):
             for pnt in expected:
                 ax.scatter(pnt[0], pnt[1], pnt[2], c='g', marker='*')
 
-        plt.show(block=False)
+        plt.show(block=True)
 
     def PlotCvxHull(self, hull, cvx2=None):
         '''
@@ -467,7 +474,7 @@ class UTILS(object):
 
         plt.show(block=False)
 
-    def ScatterPlot2D(self, x_pnt, y_pnt, title, labels, limits, cvx1=None, cvx2=None, expected=None):
+    def ScatterPlot2D(self, x_pnt, y_pnt, title, labels, limits, cvx1=None, cvx2=None, expected=None, points=None):
         '''
         plotting 2D scatter plot of locations in the room , plot the room edges too.
         :param x_pnt: list of x samples
@@ -487,9 +494,12 @@ class UTILS(object):
         ax = fig.add_subplot(111)
         for i in range(len(x_pnt)):
             ax.scatter(x_pnt[i], y_pnt[i], c='b', marker='o')
-            if np.mod(i, 2) == 0:
-                c += 1
-            ax.annotate(str(c), (x_pnt[i], y_pnt[i]))
+            if points is None:
+                if np.mod(i, 2) == 0:
+                    c += 1
+                ax.annotate(str(c), (x_pnt[i], y_pnt[i]))
+            else:
+                ax.annotate(str(points[i]), (x_pnt[i], y_pnt[i]))
 
 
         ax.set_xlabel(labels[0])
@@ -518,6 +528,8 @@ class UTILS(object):
                 if np.mod(ii, 2) == 0:
                     ax.annotate('a' + str(1 + ii/2), (pnt[0], pnt[1]))
 
+        plt.xticks(np.arange(limits[0][0], limits[0][1], step=0.3))
+        plt.yticks(np.arange(limits[1][0], limits[1][1], step=0.3))
         plt.grid()
         plt.show()
 
@@ -603,19 +615,24 @@ class UTILS(object):
             return True
         return False
 
-    def MergecsvAndGenerateForPlotting(self,folder,prefix='a'):
+    def MergecsvAndGenerateForPlotting(self, folder, prefix='loc', output_path='/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/merged_results.csv'):
         import fnmatch
         import os
-        err2d = []
-        err3d = []
+        import pandas as pd
         matches = []
-        # a = os.walk('/Users/roitoledano/Desktop/WLAN_vids')
-        # for dirs in a:
-        #     print dirs
+
         for root, dirnames, filenames in os.walk(folder):
             for filename in fnmatch.filter(filenames, prefix + '*.csv'):
                 match = os.path.join(root, filename)
+                print filename[:filename.rfind('.')]
                 matches.append(pd.read_csv(match))
+
+        new_df = pd.concat(matches)
+        print new_df
+        new_df.to_csv(output_path, index=False)
+        return new_df
+
+
 
 
 
@@ -741,109 +758,115 @@ if __name__ == '__main__':
     # for item in sig_d.items:
     #     print item
 
-
-    room3D = np.array([np.array([0, 0, 0]),
-                       np.array([0, 0, 2.4]),
-                       np.array([3.9, 0, 0]),
-                       np.array([3.9, 0, 2.4]),
-                       np.array([3.9, 4.04, 0]),
-                       np.array([3.9, 4.04, 2.4]),
-                       np.array([0.6, 4.04, 0]),
-                       np.array([0.6, 4.04, 2.4]),
-                       np.array([0.6, 1.04, 0]),
-                       np.array([0.6, 1.04, 2.4]),
-                       np.array([0, 1.04, 0]),
-                       np.array([0, 1.04, 2.4]),
-                       ])
-    triangle3D = np.array([np.array([0.6, 4.04, 0]),
-                           np.array([0.6, 4.04, 2.4]),
-                           np.array([0.6, 1.04, 0]),
-                           np.array([0.6, 1.04, 2.4]),
-                           np.array([0, 1.04, 0]),
-                           np.array([0, 1.04, 2.4]),
-                           ])
-
-
-    room2D = np.array([np.array([0, 0]),
-                       np.array([3.9, 0]),
-                       np.array([3.9, 4.04]),
-                       np.array([0.6, 4.04]),
-                       np.array([0.6, 1.04]),
-                       np.array([0, 1.04])
-                       ])
-    triangle2D = np.array([np.array([0.6, 4.04]),
-                           np.array([0.6, 1.04]),
-                           np.array([0, 1.04])
-                           ])
-
-
-    hull2d = ConvexHull(room2D)
-    non_hull2d = ConvexHull(triangle2D)
-    hull = ConvexHull(room3D)
-    non_hull = ConvexHull(triangle3D)
-
-
-    # print "is in convex ?   {0}".format((not a.IsPntInConvexHull(non_hull,np.array([3.9,0,2.4]))) & a.IsPntInConvexHull(hull,np.array([0.2,2,2])))
-    x_pnts = [1, 1.5, 2]
-    y_pnts = [1, 1, 1]
-    expected = [np.array([1.5, 1])]
-
-    # a.PlotCvxHull(hull, cvx2=non_hull)
-    a.ScatterPlot2D(x_pnts,
-                    y_pnts,
-                    "test",
-                    ["x[m]", "y[m]"],
-                    [(0,3.9),(0,4.07)],
-                    cvx1=hull2d,
-                    cvx2=non_hull2d,
-                    expected=expected)
-    err = []
-    for i in range(len(x_pnts)):
-        err.append(a.CalcErrorFromExpected([x_pnts[i], y_pnts[i]],expected))
-
-
-    print "max error = {0}\nmin error = {1}\naverage error = {2}".format(max(err),min(err),np.average(err))
-
-    # print hull.points
-    # from src.wave2toa import Speaker
-    # from src.wave2toa import recwav
-    # rec = recwav()
-    # rec.change_path('../inputs/blackmanharris5ms/1.WAV','in')
-    # rec.PlotSignal('blackmanharris5ms.wav')
-    # s = Speaker()
-    # s.Define_ID(1)
-    # s.BuildChirp()
-    # sp_sig = {'signal': s.chirp, 'Fs': 88200, 'low_freq': 27500, 'high_freq': 30000, 'mat_signal': s.matlab_chirp}
-    # rec_sig = {'signal': rec.signal, 'Fs': 88200, 'low_freq': 7500, 'high_freq': 30000, 'time': rec.rec_time}
-    # b = SignalHandler()
-    # c = SignalHandler()
-    # b.defineParams(sp_sig)
-    # c.defineParams(rec_sig)
     #
-    # b.BPF(139)
-    # c.BPF(139)
-    # b.SmoothSig(139, step='a')
-    # b.SmoothSig(139, step='b')
-    # c.SmoothSig(139, step='a')
-    # c.SmoothSig(139, step='b')
-    # def CorrWith4(self, speakers):
-    #     corr_list = []
-    #     for speaker in speakers:
-    #         corr_list.append(np.correlate(speaker.proccessed_signal.filtered_signal, speaker.chirp, 'full'))
-    #     return corr_list
-    # def FindTOA(self, corr_l, record, expected_signal_size, mode='max', thres=100):
-    #     toa = []
-    #     max_corr = []
-    #     if mode == 'threshold':
-    #         for v in corr_l:
-    #             print "TBD " + str(thres)
-    #     else:
-    #         for v in corr_l:
-    #             max_corr.append(max(v))
-    #             max_index = v.argmax(axis=0)
-    #             curr_toa = record.curr_time + (float(max_index) - expected_signal_size)/record.sample_rate
-    #             toa.append(curr_toa)
+    # room3D = np.array([np.array([0, 0, 0]),
+    #                    np.array([0, 0, 2.4]),
+    #                    np.array([3.9, 0, 0]),
+    #                    np.array([3.9, 0, 2.4]),
+    #                    np.array([3.9, 4.04, 0]),
+    #                    np.array([3.9, 4.04, 2.4]),
+    #                    np.array([0.6, 4.04, 0]),
+    #                    np.array([0.6, 4.04, 2.4]),
+    #                    np.array([0.6, 1.04, 0]),
+    #                    np.array([0.6, 1.04, 2.4]),
+    #                    np.array([0, 1.04, 0]),
+    #                    np.array([0, 1.04, 2.4]),
+    #                    ])
+    # triangle3D = np.array([np.array([0.6, 4.04, 0]),
+    #                        np.array([0.6, 4.04, 2.4]),
+    #                        np.array([0.6, 1.04, 0]),
+    #                        np.array([0.6, 1.04, 2.4]),
+    #                        np.array([0, 1.04, 0]),
+    #                        np.array([0, 1.04, 2.4]),
+    #                        ])
     #
-    #     return toa, max_corr
+    #
+    # room2D = np.array([np.array([0, 0]),
+    #                    np.array([3.9, 0]),
+    #                    np.array([3.9, 4.04]),
+    #                    np.array([0.6, 4.04]),
+    #                    np.array([0.6, 1.04]),
+    #                    np.array([0, 1.04])
+    #                    ])
+    # triangle2D = np.array([np.array([0.6, 4.04]),
+    #                        np.array([0.6, 1.04]),
+    #                        np.array([0, 1.04])
+    #                        ])
+    #
+    #
+    # hull2d = ConvexHull(room2D)
+    # non_hull2d = ConvexHull(triangle2D)
+    # hull = ConvexHull(room3D)
+    # non_hull = ConvexHull(triangle3D)
+    #
+    #
+    # # print "is in convex ?   {0}".format((not a.IsPntInConvexHull(non_hull,np.array([3.9,0,2.4]))) & a.IsPntInConvexHull(hull,np.array([0.2,2,2])))
+    # x_pnts = [1, 1.5, 2]
+    # y_pnts = [1, 1, 1]
+    # expected = [np.array([1.5, 1])]
+    #
+    # # a.PlotCvxHull(hull, cvx2=non_hull)
+    # a.ScatterPlot2D(x_pnts,
+    #                 y_pnts,
+    #                 "test",
+    #                 ["x[m]", "y[m]"],
+    #                 [(0,3.9),(0,4.07)],
+    #                 cvx1=hull2d,
+    #                 cvx2=non_hull2d,
+    #                 expected=expected)
+    # err = []
+    # for i in range(len(x_pnts)):
+    #     err.append(a.CalcErrorFromExpected([x_pnts[i], y_pnts[i]],expected))
+    #
+    #
+    # print "max error = {0}\nmin error = {1}\naverage error = {2}".format(max(err),min(err),np.average(err))
+    #
+    # # print hull.points
+    # # from src.wave2toa import Speaker
+    # # from src.wave2toa import recwav
+    # # rec = recwav()
+    # # rec.change_path('../inputs/blackmanharris5ms/1.WAV','in')
+    # # rec.PlotSignal('blackmanharris5ms.wav')
+    # # s = Speaker()
+    # # s.Define_ID(1)
+    # # s.BuildChirp()
+    # # sp_sig = {'signal': s.chirp, 'Fs': 88200, 'low_freq': 27500, 'high_freq': 30000, 'mat_signal': s.matlab_chirp}
+    # # rec_sig = {'signal': rec.signal, 'Fs': 88200, 'low_freq': 7500, 'high_freq': 30000, 'time': rec.rec_time}
+    # # b = SignalHandler()
+    # # c = SignalHandler()
+    # # b.defineParams(sp_sig)
+    # # c.defineParams(rec_sig)
+    # #
+    # # b.BPF(139)
+    # # c.BPF(139)
+    # # b.SmoothSig(139, step='a')
+    # # b.SmoothSig(139, step='b')
+    # # c.SmoothSig(139, step='a')
+    # # c.SmoothSig(139, step='b')
+    # # def CorrWith4(self, speakers):
+    # #     corr_list = []
+    # #     for speaker in speakers:
+    # #         corr_list.append(np.correlate(speaker.proccessed_signal.filtered_signal, speaker.chirp, 'full'))
+    # #     return corr_list
+    # # def FindTOA(self, corr_l, record, expected_signal_size, mode='max', thres=100):
+    # #     toa = []
+    # #     max_corr = []
+    # #     if mode == 'threshold':
+    # #         for v in corr_l:
+    # #             print "TBD " + str(thres)
+    # #     else:
+    # #         for v in corr_l:
+    # #             max_corr.append(max(v))
+    # #             max_index = v.argmax(axis=0)
+    # #             curr_toa = record.curr_time + (float(max_index) - expected_signal_size)/record.sample_rate
+    # #             toa.append(curr_toa)
+    # #
+    # #     return toa, max_corr
+    #
+    # print "Finish All"
+
+    ut_o = UTILS()
+    ut_o.MergecsvAndGenerateForPlotting('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output')
 
     print "Finish All"
+
