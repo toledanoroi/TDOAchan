@@ -20,7 +20,7 @@ from utils import UTILS
 from utils import SignalHandler
 from collections import OrderedDict as OD
 
-plotting = False
+plotting = True
 
 def resampling(speaker,rec_Fs):
     factor = int((rec_Fs/250000.0)*len(speaker.matlab_chirp))
@@ -30,7 +30,7 @@ def resampling(speaker,rec_Fs):
     if plotting:
         plt.plot(x, speaker.matlab_chirp, 'go-', x1, f, '.-',x1,speaker.chirp,'.-', 1, speaker.matlab_chirp[0], 'ro')
         plt.legend(['data', 'resampled','python generated'], loc='best')
-        plt.show(block=False)
+        plt.show(block=True)
 
     fft1   = fftpkt.fftshift(fftpkt.fft(speaker.matlab_chirp))
     freqs  = fftpkt.fftshift(fftpkt.fftfreq(len(speaker.matlab_chirp), 1.0 / rec_Fs))
@@ -45,7 +45,7 @@ def resampling(speaker,rec_Fs):
         plt.plot(freqs2, abs(fft22), 'b')
         plt.plot(freqs3, abs(fft33), 'g')
         plt.legend(['matlab 250000', 'resampled', 'python generated'], loc='best')
-        plt.show(block=False)
+        plt.show(block=True)
 
 
 class recwav(object):
@@ -91,9 +91,12 @@ class recwav(object):
 
         if plotting:
             plt.figure()
-            plt.title('Signal Wave: ' + title )
+            plt.title('Signal Wave: ' + title)
             plt.plot(self.rec_time, self.signal)
-            plt.show(block=False)
+            plt.xlabel("Time [sec]")
+            plt.ylabel("Amplitude [mV]")
+            plt.grid()
+            plt.show(block=True)
 
     def PlotFFT(self,title):
         '''
@@ -109,8 +112,10 @@ class recwav(object):
             plt.figure()
             plt.title('Signal Wave FFT: ' + title)
             plt.plot(self.freqs, abs(self.fft))
+            plt.xlabel("frequency [Hz]")
+            plt.ylabel("Amplitude")
             plt.grid()
-            plt.show(block=False)
+            plt.show(block=True)
 
     def change_path(self, path, mode='in'):
         '''
@@ -133,13 +138,13 @@ class recwav(object):
         Calculate the spectogram of the signal and plot it.
         :return:
         '''
-        f, t, Sxx = signal.spectrogram(self.signal,self.sample_rate, nperseg=64)
+        f, t, Sxx = signal.spectrogram(self.signal,self.sample_rate, nperseg=2048)
         if plotting:
             plt.pcolormesh(t, f, (10 * np.log10(Sxx)), cmap='inferno')
             plt.colorbar()
             plt.ylabel('Frequency [Hz]')
             plt.xlabel('Time [sec]')
-            plt.show(block=False)
+            plt.show(block=True)
         return f, t, Sxx
 
 
@@ -339,9 +344,9 @@ def RxMain(params):
                                                              )
     if not (os.path.isfile(params['TOA_path']) & params['TOA_path'].endswith('.csv')):
         record.change_path(os.path.abspath(params['record_path']), 'in')
-        record.PlotSignal('blackmanharris5ms')
-        record.PlotFFT(record.path)
-        spectf, spectt, spectsxx = record.Spectogram()
+        record.PlotSignal('recorded chirps by US microphone')
+        # record.PlotFFT(record.path)
+        # spectf, spectt, spectsxx = record.Spectogram()
     for i in range(len(sp_list)):
         sp_list[i].Define_ID(i + 1,
                              params['speakers_frequencies'],
@@ -358,11 +363,14 @@ def RxMain(params):
     if not (os.path.isfile(params['TOA_path']) & params['TOA_path'].endswith('.csv')):
         # define speaker parameters and filtering signals according to speakers frequencies
         peaks, _ = signal.find_peaks(record.signal, distance=int(0.8 * record.sample_rate / 2))
-        if plotting:
-            plt.plot(record.signal)
-            plt.plot(peaks, record.signal[peaks], "x")
-            plt.plot(np.zeros_like(record.signal), "--", color="gray")
-            plt.show(block=False)
+        # if plotting:
+        #     plt.plot(record.signal)
+        #     plt.plot(peaks, record.signal[peaks], "x")
+        #     plt.plot(np.zeros_like(record.signal), "--", color="gray")
+        #     plt.xlabel("Taps")
+        #     plt.ylabel("Amplitude [mV]")
+        #     plt.title("unfiltered signal's peaks")
+        #     plt.show(block=True)
         for i in range(len(sp_list)):
             # resampling(sp_list[i], record.sample_rate)
             sp_list[i].unfiltered_signal['signal'] = record.signal
@@ -396,27 +404,27 @@ def RxMain(params):
             if len(sp.corr_peaks) > tmp:
                 sp.corr_peaks = sp.corr_peaks[0:tmp]
 
-        if plotting:
-            plt.figure()
-            plt.plot(sp_list[0].correl1)
-            plt.plot(sp_list[0].corr_peaks, sp_list[0].correl1[sp_list[0].corr_peaks], "x")
-            plt.plot(np.zeros_like(sp_list[0].correl1), "--", color="gray")
-            plt.show(block=False)
-            plt.figure()
-            plt.plot(sp_list[1].correl1)
-            plt.plot(sp_list[1].corr_peaks, sp_list[1].correl1[sp_list[1].corr_peaks], "x")
-            plt.plot(np.zeros_like(sp_list[1].correl1), "--", color="gray")
-            plt.show(block=False)
-            plt.figure()
-            plt.plot(sp_list[2].correl1)
-            plt.plot(sp_list[2].corr_peaks, sp_list[2].correl1[sp_list[2].corr_peaks], "x")
-            plt.plot(np.zeros_like(sp_list[1].correl1), "--", color="gray")
-            plt.show(block=False)
-            plt.figure()
-            plt.plot(sp_list[3].correl1)
-            plt.plot(sp_list[3].corr_peaks, sp_list[3].correl1[sp_list[3].corr_peaks], "x")
-            plt.plot(np.zeros_like(sp_list[1].correl1), "--", color="gray")
-            plt.show(block=False)
+        # if plotting:
+        #     plt.figure()
+        #     plt.plot(sp_list[0].correl1)
+        #     plt.plot(sp_list[0].corr_peaks, sp_list[0].correl1[sp_list[0].corr_peaks], "x")
+        #     plt.plot(np.zeros_like(sp_list[0].correl1), "--", color="gray")
+        #     plt.show(block=True)
+        #     plt.figure()
+        #     plt.plot(sp_list[1].correl1)
+        #     plt.plot(sp_list[1].corr_peaks, sp_list[1].correl1[sp_list[1].corr_peaks], "x")
+        #     plt.plot(np.zeros_like(sp_list[1].correl1), "--", color="gray")
+        #     plt.show(block=True)
+        #     plt.figure()
+        #     plt.plot(sp_list[2].correl1)
+        #     plt.plot(sp_list[2].corr_peaks, sp_list[2].correl1[sp_list[2].corr_peaks], "x")
+        #     plt.plot(np.zeros_like(sp_list[1].correl1), "--", color="gray")
+        #     plt.show(block=True)
+        #     plt.figure()
+        #     plt.plot(sp_list[3].correl1)
+        #     plt.plot(sp_list[3].corr_peaks, sp_list[3].correl1[sp_list[3].corr_peaks], "x")
+        #     plt.plot(np.zeros_like(sp_list[1].correl1), "--", color="gray")
+        #     plt.show(block=True)
 
         for i in range(len(sp_list[0].corr_peaks)):
             min_peak = min([sp_list[j].corr_peaks[i] for j in range(len(sp_list))])
@@ -429,19 +437,21 @@ def RxMain(params):
                 loac = np.argmin(a)
                 sp.corr_peaks[i] = sp.corr_peaks_test[loac]
 
-        if plotting:
-            print "plotting"
-            plt.figure()
-            count = 0
-            for sp in sp_list:
-                count += 1
-                plt.subplot(2, 2, count)
-                plt.title(str(sp.id) + " signal vs filtered signal")
-                plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
-                plt.plot(sp.unfiltered_signal['time_vect'],
-                         sp.proccessed_signal.filtered_signal[:len(sp.unfiltered_signal['signal'])])
-                plt.grid()
-            plt.show(block=False)
+        # if plotting:
+        #     print "plotting"
+        #     plt.figure()
+        #     count = 0
+        #     for sp in sp_list:
+        #         count += 1
+        #         plt.subplot(2, 2, count)
+        #         plt.title("speaker " + str(sp.id) + "- record signal vs filtered signal")
+        #         plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
+        #         plt.plot(sp.unfiltered_signal['time_vect'],
+        #                  sp.proccessed_signal.filtered_signal[:len(sp.unfiltered_signal['signal'])])
+        #         plt.xlabel("Time [sec]")
+        #         plt.ylabel("Amplitude [mV]")
+        #         plt.grid()
+        #     plt.show(block=True)
 
         toa_texts = ["toa_sp_" + str(sp.id) for sp in sp_list]
         with open(record.toa_csv_path, 'wb') as fout:
@@ -453,7 +463,7 @@ def RxMain(params):
                 plt.plot(record.signal)
                 plt.plot(peaks, record.signal[peaks], "x")
                 plt.plot(np.zeros_like(record.signal), "--", color="gray")
-                plt.show(block=False)
+                plt.show(block=True)
 
             # delay = (params['filter_size'] - 1) / 2 + int(len(sp_list[0].chirp) / 2)
             _sum = 0
@@ -476,10 +486,13 @@ def RxMain(params):
                 for sp in sp_list:
                     count += 1
                     plt.subplot(2, 2, count)
-                    plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
-                    plt.plot(sp.proccessed_signal.record_time_with_filter_delay,
-                             sp.proccessed_signal.filtered_signal)
+                    # plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
+                    # plt.plot(sp.proccessed_signal.record_time_with_filter_delay,
+                    #          sp.proccessed_signal.filtered_signal)
                     plt.plot(corr_time_vect, sp.correl1)
+                    plt.xlabel("correlation Time [sec]")
+                    plt.ylabel("Amplitude [(mV)^2]")
+                    plt.title("speaker " + str(sp.id) + "- correlation of filtered record with expected")
                     plt.grid()
                     # for i in range(len(sp.peaks)):
                     #     print ("*" * 50 + "\n") * 3
@@ -488,13 +501,16 @@ def RxMain(params):
                     #     print "corr peak = {0}".format(sp.corr_peaks[i])
                     #     print "corr_peak - real_peak_filtered = {0}".format(sp.corr_peaks[i] - sp.peaks[i])
                     #     print ("*" * 50 + "\n") * 3
-                plt.show(block=False)
+                plt.show(block=True)
 
                 plt.figure()
                 for sp in sp_list:
                     plt.plot(corr_time_vect, sp.correl1)
-                # plt.legend(["sp1", "sp2", "sp3", "sp4"])
-                plt.show(block=False)
+                plt.xlabel("correlation Time [sec]")
+                plt.ylabel("Amplitude [(mV)^2]")
+                plt.title("all speakers correlations")
+                plt.legend(["sp1", "sp2", "sp3", "sp4"])
+                plt.show(block=True)
                 #plt.figure()
                 # for sp in sp_list:
                 #     plt.plot(sp.correl1)
@@ -540,7 +556,7 @@ def RxMain(params):
                 utils_obj.ScatterPlot3D(TDOA_for_outliers['tdoa_sp_2'], TDOA_for_outliers['tdoa_sp_3'],
                                         TDOA_for_outliers['tdoa_sp_4'],
                                         'TDOA results from sp1', ['TDOA_21 [sec]', 'TDOA_31 [sec]', 'TDOA_41 [sec]'],
-                                        [(0.01, -0.01), (0.01, -0.01), (0.01, -0.01)])
+                                        [(-0.001, -0.003), (-0.005, -0.007), (-0.007, -0.009)])
 
         rec_dict, avg_list = utils_obj.Throw_Outliers(rec_dict, TDOA_for_outliers, params['avg_group_size'])
     else:
@@ -593,6 +609,7 @@ def RxMain(params):
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # averaging results according to 3D gaussian models
+
     if not params['use_averaging_before_calculation']:
         from statistics import mean
         if params['algorithm'] == 1:
@@ -638,35 +655,17 @@ def RxMain(params):
 
     # need to add calculate error from expected value (Euclidean Distance)
 
-    if plotting:
-        utils_obj.ScatterPlot3D(results_dict['X [m]'],
-                                results_dict['Y [m]'],
-                                results_dict['Z [m]'],
-                                'Algrithm localization decision - location of microphone 3D',
-                                ['X[m]', 'Y[m]', 'Z[m]'],
-                                [(0, params['room_sizes']['x']),
-                                 (0, params['room_sizes']['y']),
-                                 (0, params['room_sizes']['z'])],
-                                cvx1=hull,
-                                cvx2=non_hull,
-                                expected=params['expected_points']
-                                )
 
-        utils_obj.ScatterPlot2D(results_dict['X [m]'],
-                                results_dict['Y [m]'],
-                                'Algrithm localization decision - location of microphone 2D',
-                                ["X[m]", "Y[m]"],
-                                [(-0.2, params['room_sizes']['x']+0.2),
-                                 (-0.2, params['room_sizes']['y']+0.2)],
-                                cvx1=hull2d,
-                                cvx2=non_hull2d,
-                                expected=params['expected_points2d']
-                                )
 
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     point_number = int(params['TOA_path'][params['TOA_path'].rfind('/') + 2: params['TOA_path'].rfind('.')])
+
+    if params['constant_z'] >= 0:
+        if params['algorithm'] == 1:
+            for loc in location_list:
+                loc[1][2] = params['constant_z']
 
     if params['algorithm'] < 4:
         results_dict = utils_obj.res2csv(location_list,
@@ -676,6 +675,7 @@ def RxMain(params):
                                          params['expected_points'][0][1],
                                          params['expected_points'][0][2],
                                          point_number)
+
 
     res2print = df(results_dict)
     print colored(res2print, 'green')
@@ -703,6 +703,31 @@ def RxMain(params):
                                          params['expected_points'][0][1],
                                          params['expected_points'][0][2],
                                          point_number)
+
+    if plotting:
+        utils_obj.ScatterPlot3D(results_dict['X [m]'],
+                                results_dict['Y [m]'],
+                                results_dict['Z [m]'],
+                                'Algrithm localization decision - location of microphone 3D',
+                                ['X[m]', 'Y[m]', 'Z[m]'],
+                                [(0, params['room_sizes']['x']),
+                                 (0, params['room_sizes']['y']),
+                                 (0, params['room_sizes']['z'])],
+                                cvx1=hull,
+                                cvx2=non_hull,
+                                expected=params['expected_points']
+                                )
+
+        utils_obj.ScatterPlot2D(results_dict['X [m]'],
+                                results_dict['Y [m]'],
+                                'Algrithm localization decision - location of microphone 2D',
+                                ["X[m]", "Y[m]"],
+                                [(-0.2, params['room_sizes']['x'] + 0.2),
+                                 (-0.2, params['room_sizes']['y'] + 0.2)],
+                                cvx1=hull2d,
+                                cvx2=non_hull2d,
+                                expected=params['expected_points2d']
+                                )
 
     res2print = df(results_dict)
     print colored(res2print, 'green')

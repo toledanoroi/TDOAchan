@@ -6,6 +6,18 @@
 from src.wave2toa import RxMain
 import numpy as np
 from termcolor import colored
+def MergeResults(folder, prefix = 'location', fout='/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/merged_location.csv'):
+    import fnmatch
+    import os
+    import pandas as pd
+    matches = []
+    for root, dirnames, filenames in os.walk(folder):
+        for filename in fnmatch.filter(filenames, prefix + '*.csv'):
+            match = os.path.join(root, filename)
+            matches.append(pd.read_csv(match))
+
+    df = pd.concat(matches)
+    df.to_csv(fout, index=False)
 
 def ToaGenerator(base_path, params, prefix='5mili'):
     '''
@@ -159,7 +171,7 @@ def PlotErrorCurves(err2d, err3d, resolutions):
     plt.ylabel("Euclidean error 2D [m]")
     plt.grid()
     plt.xticks(resolutions)
-    plt.title("LUT room Matrix Algorithm Error vs matrix resolution - 2D")
+    plt.title("Chan's TDOA Algorithm Error vs matrix resolution - 2D")
     plt.show(block=False)
     plt.figure()
     txt = []
@@ -172,7 +184,7 @@ def PlotErrorCurves(err2d, err3d, resolutions):
     plt.ylabel("Euclidean error 3D [m]")
     plt.grid()
     plt.xticks(resolutions)
-    plt.title("LUT room Matrix Algorithm Error vs matrix resolution - 3D")
+    plt.title("Chan's TDOA Algorithm Error vs matrix resolution - 3D")
     plt.show(block=False)
     mean_err2d = []
     mean_err3d = []
@@ -189,7 +201,7 @@ def PlotErrorCurves(err2d, err3d, resolutions):
     plt.ylabel("Euclidean error [m]")
     plt.grid()
     plt.xticks(resolutions)
-    plt.title("LUT room Matrix Algorithm Error vs matrix resolution - averaged results")
+    plt.title("Chan's TDOA Algorithm Error vs matrix resolution - averaged results")
     plt.legend(["2D", "3D"])
     plt.show()
 
@@ -293,7 +305,7 @@ if __name__ == '__main__':
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     res_iteration = True
-    mode = 3
+    mode = 1
     params = {}
     algorithm_d = {'chan': 1,
                    'taylor': 2,
@@ -326,15 +338,15 @@ if __name__ == '__main__':
 
     params['chirp_time'] = 0.005
     params['filter_size'] = 1001
-    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digi_bh_5m.mat'
+    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/chirp_2m_bh.mat'
     params['record_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh/a0000006.wav'
     params['signal_mode'] = 1
     frecords = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/records.csv'
-    ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs_digital.csv'
-    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh'
+    ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs_digital_.csv'
+    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/chirp_2m_bh'
 
     params['algorithm'] = algorithm_d['room']
-    params['resolution'] = 0.05  # [m]
+    params['resolution'] = 0.02  # [m]
     params['use_averaging_before_calculation'] = True
     params['time_factor'] = 2
     params['avg_group_size'] = 5
@@ -376,7 +388,7 @@ if __name__ == '__main__':
     err2d = {}
     err3d = {}
     # delt = np.linspace(0.01, 0.2, 20)
-    delt = [0.005]
+    delt = [0.03]
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
@@ -403,8 +415,9 @@ if __name__ == '__main__':
     elif mode == 3:
         # run loop with many records to examine the algorithm performence
         err2d, err3d = RunToaList(ftoas, params)
+        MergeResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output')
     elif mode == 5:
-        PlotResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/locations_results_17122018.csv',
+        PlotResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/merged_location.csv',
                     params)
 
 

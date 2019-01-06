@@ -1,7 +1,9 @@
-function [ dig_sig ] = digital_sig( t, fc , f_delta, samples_per_digital, mode )
+function [ dig_sig ] = digital_sig( t, fc , f_delta, Tcycles, Fs, mode )
 %UNTITLED Summary of this function goes here
 %   Detailed explanation goes here
 % check for the first mod(t,samples) ==0
+
+samples_per_digital = round(Tcycles * (1/(fc-f_delta)) * Fs);
 rem = mod(length(t),samples_per_digital);
 l1 = length(t) - rem;
 N = round(l1 / samples_per_digital);

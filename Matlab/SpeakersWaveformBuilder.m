@@ -32,14 +32,39 @@ switch(mode)
        save('allchirps_channel_measurement.mat', 'allchirp_');
        
     case 5  % digital signal   
-       sig1 = digital_sig(t, freqs_mat(1,1), constelation_distance, 4, 1);
-       sig2 = digital_sig(t, freqs_mat(2,1), constelation_distance, 4, 1);
-       sig3 = digital_sig(t, freqs_mat(3,1), constelation_distance, 4, 1);
-       sig4 = digital_sig(t, freqs_mat(4,1), constelation_distance, 4, 1);
+       sig1 = digital_sig(t, freqs_mat(1,1), constelation_distance, 4, Fs, 1);
+       sig2 = digital_sig(t, freqs_mat(2,1), constelation_distance, 4, Fs, 1);
+       sig3 = digital_sig(t, freqs_mat(3,1), constelation_distance, 4, Fs, 1);
+       sig4 = digital_sig(t, freqs_mat(4,1), constelation_distance, 4, Fs, 1);
+%        l = max([len(sig1),len(sig2),len(sig3),len(sig4)]);
+%        sig1 = [sig1 zeros(1,l - len(sig1))];
+%        sig2 = [sig2 zeros(1,l - len(sig2))];
+%        sig3 = [sig3 zeros(1,l - len(sig3))];
+%        sig4 = [sig4 zeros(1,l - len(sig4))];
        sig1=sig1.';
        sig2=sig2.';
        sig3=sig3.';
        sig4=sig4.';
+       
+       switch(window)
+            case 'hamming'
+                win = hamming(length(sig1));
+            case 'linear_diagonal'
+                win = linspace(1,0.02,length(sig1));
+            case 'blackman_harris'
+                win = blackmanharris(length(sig1));
+            otherwise
+                disp('no window - using box of ones');
+                win = ones(length(sig1),1);
+        end
+        
+        sig1 = sig1 .* win;
+        sig2 = sig2 .* win;
+        sig3 = sig3 .* win;
+%         sig1 = zeros(251,1);
+%         sig2 = zeros(251,1);
+%         sig3 = zeros(251,1);
+        sig4 = sig4 .* win;
        
     otherwise    
         switch msg
@@ -81,15 +106,17 @@ end
      allchirp = [sig1 sig2 sig3 sig4];
 %     save('allchirps.mat', 'allchirp');
 % 
-%     %plotting for debug
-%     a = allchirp(:,1);
-%     b = allchirp(:,2);
-%     c = allchirp(:,3);
-%     d = allchirp(:,4);
-%     figure; hold on; plot(t,a); plot(t,b); plot(t,c); plot(t,d);
-%     title('Transmitted Signals [time domain]'); legend('sp1','sp2','sp3','sp4');
-%     figure; hold on; plot(xcorr(a,a));plot(xcorr(b,b));plot(xcorr(c,c));plot(xcorr(d,d));
-%     title('Autocorrelation'); legend('sp1','sp2','sp3','sp4');
+    %plotting for debug
+    a = allchirp(:,1);
+    b = allchirp(:,2);
+    c = allchirp(:,3);
+    d = allchirp(:,4);
+    figure; hold on; plot(t,a); %plot(t,b); plot(t,c); plot(t,d);
+    title('Transmitted Signals [time domain]'); legend('sp1','sp2','sp3','sp4');
+    xlabel('Time [sec]'); ylabel('Amplitude [V]');
+    figure; hold on; plot(abs(xcorr(a,a))); plot(abs(xcorr(a,b)));plot(abs(xcorr(a,c))); plot(abs(xcorr(a,d))); %plot(xcorr(b,b));plot(xcorr(c,c));plot(xcorr(d,d));
+    title('Autocorrelation vs Cross-correlation - Digital BFSK Signal'); legend('autocorrelation - sp1', 'Cross-correlation - sp1 , sp2','Cross-correlation - sp1 , sp3','Cross-correlation - sp1 , sp4'); %,'sp2','sp3','sp4');
+    ylabel('Amplitude [V^2]');
 %     figure; hold on; plot(xcorr(a,a));plot(xcorr(a,b));plot(xcorr(a,c));plot(xcorr(a,d));
 %     title('Cross-correlation'); legend('sp1 - sp1','sp1 - sp2','sp1 - sp3','sp1 - sp4');
 

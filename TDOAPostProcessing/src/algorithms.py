@@ -15,7 +15,7 @@ from collections import OrderedDict as OD
 from matplotlib import pyplot as plt
 from src.utils import UTILS
 
-plotting = False
+plotting = True
 class ChanAlgo():
 
     def __init__(self, avg_dim=5, use_avg=False, Temprature_meas=''):
@@ -134,11 +134,16 @@ class ChanAlgo():
         if self.use_avg:
             TDOA_dict = self.utils.Sp2MicToTDOA(sp2mic)
             measuredTDOA_vectors, timestamps = self.utils.AveragingSamples(avg_list, timestamps, self.avg_dim, TDOA_dict)
+            cols = len(measuredTDOA_vectors['TDOA_from_sp1'])
+
         for i in range(cols):
+            curr_tdoa = []
             if self.use_avg:
-                curr_tdoa = [[measuredTDOA_vectors['TDOA_from_sp' + str(sp_number)][i][k]
+                for sp_number in range(1, 5):
+                    ttmp = [measuredTDOA_vectors['TDOA_from_sp' + str(sp_number)][i][k]
                               for k in range(len(measuredTDOA_vectors['TDOA_from_sp1'][i]))]
-                             for sp_number in range(1, 5)]
+                    curr_tdoa.append(ttmp)
+
                 D = self.DDOA(curr_tdoa[0], sp_location, alreadyTDOA=True)
 
             else:
@@ -275,7 +280,7 @@ class RoomMatrix(object):
             legend.append(str(i))
         if plotting:
             plt.legend(legend)
-            plt.show(block=False)
+            plt.show(block=True)
 
         # find shared best point:
         if consideration == 'all':
@@ -289,7 +294,7 @@ class RoomMatrix(object):
         if plotting:
             plt.figure()
             self.plotbytapsonly(costfunction, 'Room Euclidien Distance from measurement')
-            plt.show(block=False)
+            plt.show(block=True)
 
         if mode == 'distance':
             best = np.argmin(costfunction)

@@ -262,7 +262,7 @@ class UTILS(object):
         plt.figure(1)
         plt.title(tmp_path)
         plt.plot(record_time_vector,signal)
-        plt.show(block=False)
+        plt.show(block=True)
         return {'signal':signal, 'time_vect':record_time_vector, 'sample_rate':Fs, 'total_time':total_time}
 
     def CalcGaussianParams_nD(self, vectors):
@@ -429,7 +429,7 @@ class UTILS(object):
             for pnt in expected:
                 ax.scatter(pnt[0], pnt[1], pnt[2], c='g', marker='*')
 
-        plt.show(block=False)
+        plt.show(block=True)
 
     def PlotCvxHull(self, hull, cvx2=None):
         '''
@@ -465,7 +465,7 @@ class UTILS(object):
         #     ["myconvexhull"][1]
         #     eval("ax.set_{:s}label('{:s}')".format(i, i))
 
-        plt.show(block=False)
+        plt.show(block=True)
 
     def ScatterPlot2D(self, x_pnt, y_pnt, title, labels, limits, cvx1=None, cvx2=None, expected=None):
         '''
@@ -487,9 +487,13 @@ class UTILS(object):
         ax = fig.add_subplot(111)
         for i in range(len(x_pnt)):
             ax.scatter(x_pnt[i], y_pnt[i], c='b', marker='o')
-            if np.mod(i, 2) == 0:
+            if np.mod(i, 3) == 0:
                 c += 1
-            ax.annotate(str(c), (x_pnt[i], y_pnt[i]))
+            #     if (c == 3):
+            #         c += 1
+            #     elif (c == 12):
+            #         c += 1
+            # ax.annotate(str(c), (x_pnt[i], y_pnt[i]))
 
 
         ax.set_xlabel(labels[0])
@@ -515,10 +519,14 @@ class UTILS(object):
         if expected is not None:
             for ii, pnt in enumerate(expected):
                 ax.scatter(pnt[0], pnt[1], c='g', marker='*')
-                if np.mod(ii, 2) == 0:
-                    ax.annotate('a' + str(1 + ii/2), (pnt[0], pnt[1]))
+                # if np.mod(ii, 3) == 0:
+                #     ax.annotate('a' + str(1 + ii/2), (pnt[0], pnt[1]))
 
+
+        plt.xticks(np.arange(limits[0][0], limits[0][1], step=0.3))
+        plt.yticks(np.arange(limits[1][0], limits[1][1], step=0.3))
         plt.grid()
+        # plt.legend(['room edge points', 'room walls', 'not room points', 'non room walls egdes', 'algorithm results', 'expected'])
         plt.show()
 
     def CalcErrorFromExpected(self, pnt, expected):
@@ -653,7 +661,9 @@ class SignalHandler(object):
 
 
         self.h1 = signal.firwin(numtaps=n, cutoff=[cf - pbw,cf + pbw],pass_zero=False, nyq=self.Fs / 2)
+
         # if plotting:
+        #
         #     self.mfreqz(self.h1)
         self.filtered_signal = signal.convolve(self.signal, self.h1)
         self.record_time_with_filter_delay = np.linspace(0, float(len(self.filtered_signal)) / self.Fs, num=len(self.filtered_signal))
@@ -688,7 +698,7 @@ class SignalHandler(object):
         plt.plot(w/max(w), h_dB)
         plt.grid()
         plt.ylim(-150, 5)
-        plt.ylabel('Magnitude (db)')
+        plt.ylabel('Magnitude (dB)')
         plt.xlabel(r'Normalized Frequency (x$\pi$rad/sample)')
         plt.title(r'Frequency response')
         plt.subplot(212)
@@ -699,7 +709,13 @@ class SignalHandler(object):
         plt.xlabel(r'Normalized Frequency (x$\pi$rad/sample)')
         plt.title(r'Phase response')
         plt.subplots_adjust(hspace=0.5)
-        plt.show(block=False)
+        plt.show(block=True)
+
+        plt.figure()
+        plt.plot(b, 'bo-', linewidth=2)
+        plt.title('Filter Coefficients (%d taps)' % len(b))
+        plt.grid(True)
+        plt.show()
 
     def Plotsignaldiff(self,mode='f'):
         '''
