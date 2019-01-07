@@ -83,7 +83,7 @@ def ReadToaandExpected(fin):
     return [(resfile['toa_path'][i],resfile['e_x'][i],resfile['e_y'][i],resfile['e_z'][i])
             for i in range(len(resfile['toa_path'])) if op.isfile(resfile['toa_path'][i])]
 
-def PlotResults(fin, _params, show='2D'):
+def PlotResults(fin, _params, _show='2D'):
     from src.utils import UTILS as ut
     from pandas import read_csv , DataFrame
     utils_obj = ut()
@@ -96,8 +96,10 @@ def PlotResults(fin, _params, show='2D'):
     # read file:
     results = read_csv(fin)
     expected_locations = [[results['E[x]'][i],results['E[y]'][i]] for i in xrange(len(results['E[x]']))]
-
-    if show == '2D':
+    expected_locations_3D = [[results['E[x]'][i], results['E[y]'][i], results['E[z]'][i]] for i in xrange(len(results['E[x]']))]
+    expected_locations_xz = [[results['E[x]'][i], results['E[z]'][i]] for i in xrange(len(results['E[x]']))]
+    expected_locations_YZ = [[results['E[y]'][i], results['E[z]'][i]] for i in xrange(len(results['E[y]']))]
+    if _show == '2D':
         utils_obj.ScatterPlot2D(results['X [m]'],
                                 results['Y [m]'],
                                 'Room LUT algorithm results',
@@ -107,9 +109,37 @@ def PlotResults(fin, _params, show='2D'):
                                 cvx2=non_hull2d,
                                 expected=expected_locations
                                 )
+    elif _show == '3D':
+        utils_obj.ScatterPlot2D(results['X [m]'],
+                                results['Z [m]'],
+                                'Room LUT algorithm results XZ plane',
+                                ['X [m]', 'Z [m]'],
+                                [(0 ,_params['room_sizes']['x']), (0, _params['room_sizes']['z'])],
+                                cvx1=None,
+                                cvx2=None,
+                                expected=expected_locations_xz
+                                )
+        utils_obj.ScatterPlot2D(results['Y [m]'],
+                                results['Z [m]'],
+                                'Room LUT algorithm results YZ plane',
+                                ['Y [m]', 'Z [m]'],
+                                [(0 ,_params['room_sizes']['y']), (0, _params['room_sizes']['z'])],
+                                cvx1=None,
+                                cvx2=None,
+                                expected=expected_locations_YZ
+                                )
+
+        utils_obj.ScatterPlot3D(results['X [m]'],
+                                results['Y [m]'],
+                                results['Z [m]'],'Room LUT algorithm results 3D',['X [m]', 'Y [m]', 'Z [m]'],
+                                [(0, _params['room_sizes']['x']), (0, _params['room_sizes']['y']), (0, _params['room_sizes']['z'])],
+                                cvx1=hull,
+                                cvx2=non_hull,
+                                expected=expected_locations_3D
+                                )
     else:
-        print "TBD"
-        pass
+        print "not supported"
+
 
     # plotting error
     from matplotlib.pyplot import plot, show, xlabel, ylabel, title, scatter, grid
@@ -171,7 +201,7 @@ def PlotErrorCurves(err2d, err3d, resolutions):
     plt.ylabel("Euclidean error 2D [m]")
     plt.grid()
     plt.xticks(resolutions)
-    plt.title("Chan's TDOA Algorithm Error vs matrix resolution - 2D")
+    plt.title("LUT's TDOA Algorithm Error vs matrix resolution - 2D")
     plt.show(block=False)
     plt.figure()
     txt = []
@@ -184,7 +214,7 @@ def PlotErrorCurves(err2d, err3d, resolutions):
     plt.ylabel("Euclidean error 3D [m]")
     plt.grid()
     plt.xticks(resolutions)
-    plt.title("Chan's TDOA Algorithm Error vs matrix resolution - 3D")
+    plt.title("LUT's TDOA Algorithm Error vs matrix resolution - 3D")
     plt.show(block=False)
     mean_err2d = []
     mean_err3d = []
@@ -201,7 +231,7 @@ def PlotErrorCurves(err2d, err3d, resolutions):
     plt.ylabel("Euclidean error [m]")
     plt.grid()
     plt.xticks(resolutions)
-    plt.title("Chan's TDOA Algorithm Error vs matrix resolution - averaged results")
+    plt.title("LUT's TDOA Algorithm Error vs matrix resolution - averaged results")
     plt.legend(["2D", "3D"])
     plt.show()
 
@@ -305,7 +335,7 @@ if __name__ == '__main__':
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     res_iteration = True
-    mode = 1
+    mode = 5
     params = {}
     algorithm_d = {'chan': 1,
                    'taylor': 2,
@@ -338,12 +368,12 @@ if __name__ == '__main__':
 
     params['chirp_time'] = 0.005
     params['filter_size'] = 1001
-    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/chirp_2m_bh.mat'
+    params['matlab_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digi_bh_5m.mat'
     params['record_path'] = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh/a0000006.wav'
     params['signal_mode'] = 1
     frecords = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/records.csv'
     ftoas = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/toacsvs_digital_.csv'
-    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/chirp_2m_bh'
+    frecbase = '/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/inputs/digital_bh'
 
     params['algorithm'] = algorithm_d['room']
     params['resolution'] = 0.02  # [m]
@@ -388,7 +418,7 @@ if __name__ == '__main__':
     err2d = {}
     err3d = {}
     # delt = np.linspace(0.01, 0.2, 20)
-    delt = [0.03]
+    delt = [0.005]
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------
@@ -418,7 +448,7 @@ if __name__ == '__main__':
         MergeResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output')
     elif mode == 5:
         PlotResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/output/merged_location.csv',
-                    params)
+                    params, _show='2D')
 
 
     # ---------------------------------------------------------------------------------------------------------

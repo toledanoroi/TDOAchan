@@ -15,7 +15,7 @@ from collections import OrderedDict as OD
 from matplotlib import pyplot as plt
 from src.utils import UTILS
 
-plotting = True
+plotting = False
 class ChanAlgo():
 
     def __init__(self, avg_dim=5, use_avg=False, Temprature_meas=''):

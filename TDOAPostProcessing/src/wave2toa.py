@@ -20,7 +20,7 @@ from utils import UTILS
 from utils import SignalHandler
 from collections import OrderedDict as OD
 
-plotting = True
+plotting = False
 
 def resampling(speaker,rec_Fs):
     factor = int((rec_Fs/250000.0)*len(speaker.matlab_chirp))
