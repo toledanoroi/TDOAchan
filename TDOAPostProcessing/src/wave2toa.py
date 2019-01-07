@@ -573,6 +573,7 @@ def RxMain(params):
     if params['algorithm'] == 1:
         chan = algos.ChanAlgo(avg_dim=params['avg_group_size'],
                               use_avg=params['use_averaging_before_calculation'],
+                              Temprature_meas=params['Temperature']
                               )
         location_list = chan.chan_main(sp2mic, sp_location, timestamps, avg_list)
     elif params['algorithm'] == 2:
@@ -586,7 +587,8 @@ def RxMain(params):
                                    sp_list,
                                    res=params['resolution'],
                                    avg_dim=params['avg_group_size'],
-                                   constant_z=params['constant_z']
+                                   constant_z=params['constant_z'],
+                                   Temprature_meas=params['Temperature']
                                    )
         location_list = LUT_obj.RoomMatMain(sp2mic,
                                             timestamps,

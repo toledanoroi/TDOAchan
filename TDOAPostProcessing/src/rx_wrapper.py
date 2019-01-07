@@ -121,7 +121,63 @@ def ReadToaandExpected(fin):
     return [(resfile['toa_path'][i],resfile['e_x'][i],resfile['e_y'][i],resfile['e_z'][i])
             for i in range(len(resfile['toa_path'])) if op.isfile(resfile['toa_path'][i])]
 
-def PlotResults(fin, _params, show='2D'):
+# def PlotResults(fin, _params, show='2D'):
+#     from src.utils import UTILS as ut
+#     from pandas import read_csv , DataFrame
+#     utils_obj = ut()
+#     # define room convex
+#     hull, non_hull, hull2d, non_hull2d = utils_obj.DefineRoom(_params['room3D'],
+#                                                               _params['triangle3D'],
+#                                                               shapewithnonedgepoint=False,
+#                                                               plotting=False
+#                                                              )
+#     # read file:
+#     results = read_csv(fin)
+#     if ((results['E[x]'][0] >= 0) & (results['E[y]'][0] >= 0) & (results['E[z]'][0] >= 0) ):
+#         expected_locations = [[results['E[x]'][i], results['E[y]'][i]]
+#                               for i in xrange(len(results['E[x]']))]
+#     else:
+#         expected_locations = None
+#
+#     if show == '2D':
+#         utils_obj.ScatterPlot2D(results['X [m]'],
+#                                 results['Y [m]'],
+#                                 'Room LUT algorithm results - 2D',
+#                                 ['X [m]', 'Y [m]'],
+#                                 [(0 ,_params['room_sizes']['x']), (0, _params['room_sizes']['y'])],
+#                                 cvx1=hull2d,
+#                                 cvx2=non_hull2d,
+#                                 expected=expected_locations,
+#                                 points=results['point_set']
+#                                 )
+#     else:
+#         utils_obj.ScatterPlot3D(results['X [m]'],
+#                                 results['Y [m]'],
+#                                 results['Z [m]'],
+#                                 'Room LUT algorithm results - 3D',
+#                                 ['X [m]', 'Y [m]', 'Z [m]'],
+#                                 [(0, _params['room_sizes']['x']), (0, _params['room_sizes']['y']), (0, _params['room_sizes']['z'])],
+#                                 cvx1=hull,
+#                                 cvx2=non_hull,
+#                                 expected=expected_locations,
+#                                 points=results['point_set']
+#                                 )
+#
+#     # plotting error
+#     if expected_locations == None:
+#         from matplotlib.pyplot import show
+#         show()
+#     else:
+#         from matplotlib.pyplot import plot, show, xlabel, ylabel, title, scatter, grid
+#         plot(results['Iteration'], results['Error'])
+#         scatter(results['Iteration'], results['Error'])
+#         xlabel("Iteration number")
+#         ylabel("Euclidean Error")
+#         title("Euclidian distance error per iteration")
+#         grid()
+#         show()
+
+def PlotResults(fin, _params, _show='2D'):
     from src.utils import UTILS as ut
     from pandas import read_csv , DataFrame
     utils_obj = ut()
@@ -133,49 +189,61 @@ def PlotResults(fin, _params, show='2D'):
                                                              )
     # read file:
     results = read_csv(fin)
-    if ((results['E[x]'][0] >= 0) & (results['E[y]'][0] >= 0) & (results['E[z]'][0] >= 0) ):
-        expected_locations = [[results['E[x]'][i], results['E[y]'][i]]
-                              for i in xrange(len(results['E[x]']))]
-    else:
-        expected_locations = None
-
-    if show == '2D':
+    expected_locations = [[results['E[x]'][i],results['E[y]'][i]] for i in xrange(len(results['E[x]']))]
+    expected_locations_3D = [[results['E[x]'][i], results['E[y]'][i], results['E[z]'][i]] for i in xrange(len(results['E[x]']))]
+    expected_locations_xz = [[results['E[x]'][i], results['E[z]'][i]] for i in xrange(len(results['E[x]']))]
+    expected_locations_YZ = [[results['E[y]'][i], results['E[z]'][i]] for i in xrange(len(results['E[y]']))]
+    if _show == '2D':
         utils_obj.ScatterPlot2D(results['X [m]'],
                                 results['Y [m]'],
-                                'Room LUT algorithm results - 2D',
+                                'Room LUT algorithm results',
                                 ['X [m]', 'Y [m]'],
                                 [(0 ,_params['room_sizes']['x']), (0, _params['room_sizes']['y'])],
                                 cvx1=hull2d,
                                 cvx2=non_hull2d,
-                                expected=expected_locations,
-                                points=results['point_set']
+                                expected=expected_locations
                                 )
-    else:
+    elif _show == '3D':
+        utils_obj.ScatterPlot2D(results['X [m]'],
+                                results['Z [m]'],
+                                'Room LUT algorithm results XZ plane',
+                                ['X [m]', 'Z [m]'],
+                                [(0 ,_params['room_sizes']['x']), (0, _params['room_sizes']['z'])],
+                                cvx1=None,
+                                cvx2=None,
+                                expected=expected_locations_xz
+                                )
+        utils_obj.ScatterPlot2D(results['Y [m]'],
+                                results['Z [m]'],
+                                'Room LUT algorithm results YZ plane',
+                                ['Y [m]', 'Z [m]'],
+                                [(0 ,_params['room_sizes']['y']), (0, _params['room_sizes']['z'])],
+                                cvx1=None,
+                                cvx2=None,
+                                expected=expected_locations_YZ
+                                )
+
         utils_obj.ScatterPlot3D(results['X [m]'],
                                 results['Y [m]'],
-                                results['Z [m]'],
-                                'Room LUT algorithm results - 3D',
-                                ['X [m]', 'Y [m]', 'Z [m]'],
+                                results['Z [m]'],'Room LUT algorithm results 3D',['X [m]', 'Y [m]', 'Z [m]'],
                                 [(0, _params['room_sizes']['x']), (0, _params['room_sizes']['y']), (0, _params['room_sizes']['z'])],
                                 cvx1=hull,
                                 cvx2=non_hull,
-                                expected=expected_locations,
-                                points=results['point_set']
+                                expected=expected_locations_3D
                                 )
+    else:
+        print "not supported"
+
 
     # plotting error
-    if expected_locations == None:
-        from matplotlib.pyplot import show
-        show()
-    else:
-        from matplotlib.pyplot import plot, show, xlabel, ylabel, title, scatter, grid
-        plot(results['Iteration'], results['Error'])
-        scatter(results['Iteration'], results['Error'])
-        xlabel("Iteration number")
-        ylabel("Euclidean Error")
-        title("Euclidian distance error per iteration")
-        grid()
-        show()
+    from matplotlib.pyplot import plot, show, xlabel, ylabel, title, scatter, grid
+    plot(results['Iteration'], results['Error'])
+    scatter(results['Iteration'], results['Error'])
+    xlabel("Iteration number")
+    ylabel("Euclidean Error")
+    title("Euclidian distance error per iteration")
+    grid()
+    show()
 
 def RunToaList(fin, params):
     '''
@@ -396,6 +464,7 @@ if __name__ == '__main__':
                             'z': 3.051}
 
     params['constant_z'] = 0.61
+    params['Temperature'] = -10  # [C degrees]
     params['only_toa'] = False
     import time
     params['point_name'] = '../output/TOA_' + str(int(time.time())) + '.csv'
@@ -479,11 +548,9 @@ if __name__ == '__main__':
         err2d, err3d = RunToaList(ftoas, params)
     elif mode == 5:
         PlotResults('/Users/roitoledano/git/TDOAchan/TDOAPostProcessing/toa_to_save/locations_results_17122018.csv',
-                    params)
+                    params, _show='3D')
     elif mode == 6:
         RunWithoutExpected(frecbase, params, prefix='a')
-
-
 
     # ---------------------------------------------------------------------------------------------------------
     # ---------------------------------------------------------------------------------------------------------

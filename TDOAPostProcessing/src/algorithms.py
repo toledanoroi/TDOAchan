@@ -18,7 +18,7 @@ from src.utils import UTILS
 plotting = False
 class ChanAlgo():
 
-    def __init__(self, avg_dim=5, use_avg=False, Temprature_meas=''):
+    def __init__(self, avg_dim=5, use_avg=False, Temprature_meas=-100):
         self.wakeuptime = time()
         self.location_list = []
 
@@ -28,10 +28,8 @@ class ChanAlgo():
         self.use_avg = use_avg
         self.utils = UTILS()
 
-        if isfile(Temprature_meas) & Temprature_meas.endswith('.mat'):
-            temprature_mat = io.loadmat(Temprature_meas)
-            mu_temprature = temprature_mat['mu']
-            self.speedofvoice = 331.3 + 0.606 * mu_temprature
+        if Temprature_meas > 0:
+            self.speedofvoice = 331.3 + 0.606 * Temprature_meas
         else:
             self.speedofvoice = 343.21
 
@@ -153,7 +151,7 @@ class ChanAlgo():
         return self.location_list
 
 class RoomMatrix(object):
-    def __init__(self, x, y, z, sp_list, avg_dim=5, res=0.1, Temprature_meas='', constant_z=-1):
+    def __init__(self, x, y, z, sp_list, avg_dim=5, res=0.1, Temprature_meas=-100, constant_z=-1):
         '''
         Initiate Room Matrix algorithm, define all parameters and create room quantization
         :param x: room length - x axis
@@ -196,10 +194,8 @@ class RoomMatrix(object):
         for sp in sp_list:
             self.speakers[sp.id] = [sp.x, sp.y, sp.z]
 
-        if isfile(Temprature_meas) & Temprature_meas.endswith('.mat'):
-            temprature_mat = io.loadmat(Temprature_meas)
-            mu_temprature = temprature_mat['mu']
-            self.speedofvoice = 331.3 + 0.606 * mu_temprature
+        if Temprature_meas > 0:
+            self.speedofvoice = 331.3 + 0.606 * Temprature_meas
         else:
             self.speedofvoice = 343.21
 
