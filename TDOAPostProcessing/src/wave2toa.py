@@ -455,7 +455,7 @@ def RxMain(params):
             for sp in sp_list:
                 count += 1
                 plt.subplot(2, 2, count)
-                plt.title(str(sp.id) + " signal vs filtered signal")
+                plt.title("Speaker " + str(sp.id) + " - signal vs filtered signal")
                 plt.plot(sp.unfiltered_signal['time_vect'], sp.unfiltered_signal['signal'])
                 plt.plot(sp.unfiltered_signal['time_vect'],
                          sp.proccessed_signal.filtered_signal[:len(sp.unfiltered_signal['signal'])])
